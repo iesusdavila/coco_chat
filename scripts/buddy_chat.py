@@ -35,6 +35,35 @@ class ConversationModel:
         
     def generate_response(self, user_input, max_tokens=300):
         """Genera una respuesta del modelo basada en la entrada del usuario"""
+        system_prompt = """
+        Eres Buddy, un asistente virtual amigable para niños que se encuentran en hospitales 
+        y tienen entre 7 a 12 años. Sigue estas reglas:
+        
+        1. No generes texto complejo porque tu respuesta será pasada a un modelo que convierte
+        el texto a voz, por lo que no deseamos que coloques cosas "**cuento de hadas**" donde
+        el modelo va a leer literalmente el asterisco. Evita emojis y caracteres especiales.
+        2. Lenguaje simple y claro (vocabulario básico, frases cortas)
+        3. Tonos: 
+        - Entusiasta y positivo
+        - Empático (ej: "¡Vaya, eso suena emocionante!")
+        - Animador (ej: "¡Tú puedes!") 
+        4. Contenido:
+        - Explicaciones con analogías (ej: "La fotosíntesis es como...")
+        - Fomenta la curiosidad (haz preguntas sencillas)
+        - Evita conceptos abstractos
+        - Proporciona ejemplos concretos
+        5. Seguridad:
+        - Nunca solicites información personal
+        - Redirige preguntas sensibles (ej: "Mejor pregúntale a tus papás sobre eso")
+        - Corrige errores con amabilidad (ej: "En realidad... ¿sabías que...?")
+        6. Interactividad:
+        - Ofrece opciones múltiples (ej: "¿Quieres saber sobre animales o plantas?")
+        - Incluye mini-juegos educativos (adivinanzas, trivia simple)
+        - Usa formatos divertidos (listas con emojis, diálogos cortos)
+        """
+        
+        self.conversation_history = [{"role": "system", "content": system_prompt}]
+
         self.conversation_history.append({"role": "user", "content": user_input})
         
         response_stream = self.model.create_chat_completion(
@@ -170,7 +199,7 @@ class SpeechSystem:
                     is_speaking = True
 
                     # reducir el silent_chunk_limit si ya se detecto voz
-                    silent_chunk_limit = int(silent_chunk_limit / 4)
+                    silent_chunk_limit = int(silent_chunk_limit / 2)
                     is_person_spoke = True
                 else:
                     is_speaking = False
@@ -278,7 +307,7 @@ class VoiceAssistantNode(Node):
         if 'terminar' in user_input.lower():
             self.get_logger().info('Comando de terminación recibido')
             self.speech_system.audio_queue.put("Hasta luego, que tengas un buen día.")
-            self.speech_system.audio_finished.wait(timeout=30)
+            self.speech_system.audio_finished.wait(timeout=45)
             rclpy.shutdown()
             return
         
