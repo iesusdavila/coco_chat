@@ -108,6 +108,9 @@ class SpeechSystem:
         
         self.vosk_model = Model(vosk_model_path)
         self.node = node  # Referencia al nodo ROS2
+
+        self.tts_active = threading.Event()  # Nuevo evento
+        self.stt_pause = threading.Event()   # Para pausar STT
         
     def start_tts_worker(self):
         """Inicia el hilo de trabajo para TTS"""
@@ -121,8 +124,8 @@ class SpeechSystem:
             try:
                 text_chunk = self.audio_queue.get(timeout=0.5)
                 if text_chunk:
-                    if self.node:
-                        self.node.get_logger().debug(f'TTS processing: {text_chunk}')
+                    self.tts_active.set()  # Marcar TTS como activo
+                    self.stt_pause.set()   # Pausar STT
                     
                     with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as fp:
                         with wave.open(fp.name, 'wb') as wav_file:
@@ -133,6 +136,8 @@ class SpeechSystem:
                         playsound(fp.name)
                     self.audio_queue.task_done()
                     if self.audio_queue.empty():
+                        self.tts_active.clear()
+                        self.stt_pause.clear()  # Reactivar STT
                         self.audio_finished.set()
             except queue.Empty:
                 continue
@@ -168,6 +173,9 @@ class SpeechSystem:
     def voice_to_text_offline(self):
         """Convierte voz a texto usando Vosk (modo offline)"""
         print("\n--- Preparado para escuchar (modo offline) ---")
+
+        while self.tts_active.is_set() or self.stt_pause.is_set():
+            time.sleep(0.05)
         
         p = pyaudio.PyAudio()
         stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
@@ -188,6 +196,10 @@ class SpeechSystem:
         
         try:
             while True:
+                # Pausar la captura si hay TTS activo
+                if self.stt_pause.is_set():
+                    time.sleep(0.1)
+                    continue
                 data = stream.read(4000, exception_on_overflow=False)
                 audio_buffer.extend(data)
                 
@@ -339,17 +351,15 @@ class VoiceAssistantNode(Node):
         
         try:
             while rclpy.ok():
-                self.speech_system.audio_finished.clear()
-                
                 while not self.speech_system.audio_queue.empty():
                     time.sleep(0.1)
-                
-                time.sleep(2.5)
-                
+            
+                # Iniciar detección de voz inmediatamente
+                self.get_logger().info("Escuchando...")
                 user_input = self.speech_system.voice_to_text_offline()
                 
                 if not user_input:
-                    self.get_logger().info("Intentando de nuevo...")
+                    self.get_logger().info("No se detectó voz, reintentando...")
                     continue
                 
                 if 'terminar' in user_input:
