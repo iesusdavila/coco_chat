@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-# Importaciones ROS2
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 from ament_index_python.packages import get_package_share_directory
-
-# Importaciones para el asistente de voz
 from llama_cpp import Llama
 import re
 import threading
@@ -23,7 +20,6 @@ import pyaudio
 
 
 class ConversationModel:
-    """Clase para gestionar el modelo LLM y el historial de conversación"""
     def __init__(self, model_path, context_size=2048, temperature=0.7):
         self.model = Llama(
             model_path=model_path,
@@ -34,32 +30,25 @@ class ConversationModel:
         self.conversation_history = []
         
     def generate_response(self, user_input, max_tokens=300):
-        """Genera una respuesta del modelo basada en la entrada del usuario"""
         system_prompt = """
         Eres Buddy, un asistente virtual amigable para niños que se encuentran en hospitales 
         y tienen entre 7 a 12 años. Sigue estas reglas:
         
-        1. No generes texto complejo porque tu respuesta será pasada a un modelo que convierte
-        el texto a voz, por lo que no deseamos que coloques cosas "**cuento de hadas**" donde
-        el modelo va a leer literalmente el asterisco. Evita emojis y caracteres especiales.
-        2. Lenguaje simple y claro (vocabulario básico, frases cortas)
-        3. Tonos: 
+        1. Respuestas:
+        - Evita respuestas con caracteres especiales
+        - Lenguae simple y claro
+        2. Tonos: 
         - Entusiasta y positivo
         - Empático (ej: "¡Vaya, eso suena emocionante!")
         - Animador (ej: "¡Tú puedes!") 
-        4. Contenido:
-        - Explicaciones con analogías (ej: "La fotosíntesis es como...")
-        - Fomenta la curiosidad (haz preguntas sencillas)
-        - Evita conceptos abstractos
-        - Proporciona ejemplos concretos
-        5. Seguridad:
+        3. Seguridad:
         - Nunca solicites información personal
         - Redirige preguntas sensibles (ej: "Mejor pregúntale a tus papás sobre eso")
         - Corrige errores con amabilidad (ej: "En realidad... ¿sabías que...?")
-        6. Interactividad:
+        4. Interactividad:
         - Ofrece opciones múltiples (ej: "¿Quieres saber sobre animales o plantas?")
         - Incluye mini-juegos educativos (adivinanzas, trivia simple)
-        - Usa formatos divertidos (listas con emojis, diálogos cortos)
+        - Usa formatos divertidos (lisdiálogos cortos)
         """
         
         self.conversation_history = [{"role": "system", "content": system_prompt}]
@@ -85,11 +74,8 @@ class TextProcessor:
     @staticmethod
     def clean_text(text):
         """Limpia el texto y prepara para síntesis de voz"""
-        # Eliminar caracteres especiales
         text = re.sub(r'[!¡?¿*,.:;()\[\]{}]', ' ', text)
-        # Simplificar espacios y saltos de línea
         text = re.sub(r'\s+', ' ', text).strip()
-        # Dividir en frases naturales
         return re.split(r'(?<=[.!?])\s+', text)
 
 
@@ -107,10 +93,10 @@ class SpeechSystem:
         self.tts_thread = None
         
         self.vosk_model = Model(vosk_model_path)
-        self.node = node  # Referencia al nodo ROS2
+        self.node = node  
 
-        self.tts_active = threading.Event()  # Nuevo evento
-        self.stt_pause = threading.Event()   # Para pausar STT
+        self.tts_active = threading.Event()  
+        self.stt_pause = threading.Event()   
         
     def start_tts_worker(self):
         """Inicia el hilo de trabajo para TTS"""
@@ -124,8 +110,8 @@ class SpeechSystem:
             try:
                 text_chunk = self.audio_queue.get(timeout=0.5)
                 if text_chunk:
-                    self.tts_active.set()  # Marcar TTS como activo
-                    self.stt_pause.set()   # Pausar STT
+                    self.tts_active.set()
+                    self.stt_pause.set()
                     
                     with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as fp:
                         with wave.open(fp.name, 'wb') as wav_file:
@@ -137,7 +123,7 @@ class SpeechSystem:
                     self.audio_queue.task_done()
                     if self.audio_queue.empty():
                         self.tts_active.clear()
-                        self.stt_pause.clear()  # Reactivar STT
+                        self.stt_pause.clear()
                         self.audio_finished.set()
             except queue.Empty:
                 continue
@@ -196,7 +182,6 @@ class SpeechSystem:
         
         try:
             while True:
-                # Pausar la captura si hay TTS activo
                 if self.stt_pause.is_set():
                     time.sleep(0.1)
                     continue
@@ -210,7 +195,6 @@ class SpeechSystem:
                     silent_chunks = 0
                     is_speaking = True
 
-                    # reducir el silent_chunk_limit si ya se detecto voz
                     silent_chunk_limit = int(silent_chunk_limit / 2)
                     is_person_spoke = True
                 else:
@@ -267,17 +251,13 @@ class VoiceAssistantNode(Node):
     def __init__(self):
         super().__init__('voice_assistant_node')
         
-        # Obtener la ruta del directorio share para el paquete
         pkg_share_dir = get_package_share_directory('buddy_chat')
         
-        # Rutas de los modelos
-        # models/LLM/models--ggml-org--Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF/snapshots/0aba27dd2f1c7f4941a94a5c59d80e0a256f9ff8/meta-llama-3.1-8b-instruct-q4_0.gguf
         self.llm_model_path = os.path.join(pkg_share_dir, 'models', 'LLM/models--ggml-org--Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF/snapshots/0aba27dd2f1c7f4941a94a5c59d80e0a256f9ff8', 'meta-llama-3.1-8b-instruct-q4_0.gguf')
         self.tts_model_path = os.path.join(pkg_share_dir, 'models', 'TTS', 'es_MX-claude-high.onnx')
         self.tts_config_path = os.path.join(pkg_share_dir, 'models', 'TTS', 'es_MX-claude-high.onnx.json')
         self.vosk_model_path = os.path.join(pkg_share_dir, 'models', 'STT', 'vosk-model-small-es-0.42')
         
-        # Inicializar componentes
         self.get_logger().info('Inicializando el modelo de conversación...')
         self.conversation_model = ConversationModel(self.llm_model_path)
         
@@ -290,14 +270,12 @@ class VoiceAssistantNode(Node):
             node=self
         )
         
-        # Publicador para las respuestas del asistente
         self.response_publisher = self.create_publisher(
             String, 
             'voice_assistant/response', 
             10
         )
         
-        # Suscriptor para recibir comandos de texto
         self.text_input_subscription = self.create_subscription(
             String,
             'voice_assistant/text_input',
@@ -305,7 +283,6 @@ class VoiceAssistantNode(Node):
             10
         )
         
-        # Timer para iniciar el modo de voz
         self.timer = self.create_timer(1.0, self.start_voice_mode)
         self.timer_active = True
         
@@ -327,7 +304,6 @@ class VoiceAssistantNode(Node):
         response = self.speech_system.process_stream(response_stream)
         self.conversation_model.add_assistant_response(response)
         
-        # Publicar la respuesta
         response_msg = String()
         response_msg.data = response
         self.response_publisher.publish(response_msg)
@@ -339,7 +315,6 @@ class VoiceAssistantNode(Node):
             self.timer_active = False
             self.get_logger().info('Iniciando modo de voz...')
             
-            # Crear un hilo separado para el modo de voz
             self.voice_thread = threading.Thread(target=self.run_voice_mode)
             self.voice_thread.daemon = True
             self.voice_thread.start()
@@ -354,7 +329,6 @@ class VoiceAssistantNode(Node):
                 while not self.speech_system.audio_queue.empty():
                     time.sleep(0.1)
             
-                # Iniciar detección de voz inmediatamente
                 self.get_logger().info("Escuchando...")
                 user_input = self.speech_system.voice_to_text_offline()
                 
@@ -364,7 +338,6 @@ class VoiceAssistantNode(Node):
                 
                 if 'terminar' in user_input:
                     self.speech_system.audio_queue.put("Hasta luego, que tengas un buen día.")
-                    # Publicar comando de terminación
                     term_msg = String()
                     term_msg.data = "terminar"
                     self.response_publisher.publish(term_msg)
@@ -376,7 +349,6 @@ class VoiceAssistantNode(Node):
                 response = self.speech_system.process_stream(response_stream)
                 self.conversation_model.add_assistant_response(response)
                 
-                # Publicar la respuesta
                 response_msg = String()
                 response_msg.data = response
                 self.response_publisher.publish(response_msg)
@@ -400,7 +372,6 @@ def main(args=None):
     except Exception as e:
         node.get_logger().error(f'Error en el nodo: {str(e)}')
     finally:
-        # Limpiar los recursos
         node.speech_system.cleanup()
         node.destroy_node()
         rclpy.shutdown()
