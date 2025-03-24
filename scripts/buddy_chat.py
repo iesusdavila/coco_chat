@@ -133,7 +133,7 @@ class SpeechSystem:
         buffer = ""
         full_response = ""
         
-        print("modelo: ", flush=True)
+        self.get_logger().info("Modelo: ", flush=True)
         
         for token in response_stream:
             content = token['choices'][0]['delta'].get('content', '')
@@ -157,8 +157,8 @@ class SpeechSystem:
         return full_response
     
     def voice_to_text_offline(self):
-        """Convierte voz a texto usando Vosk (modo offline)"""
-        print("\n--- Preparado para escuchar (modo offline) ---")
+        """Convierte voz a texto usando Vosk"""
+        self.get_logger().info("Preparado para escuchar... ")
 
         while self.tts_active.is_set() or self.stt_pause.is_set():
             time.sleep(0.05)
@@ -169,7 +169,7 @@ class SpeechSystem:
         
         recognizer = KaldiRecognizer(self.vosk_model, 16000)
         
-        print("Hablando... (presiona Ctrl+C para detener)")
+        self.get_logger().info("El modelo esta escuchando...")
         
         silence_limit = 20
         silence_threshold = 3000
@@ -180,61 +180,52 @@ class SpeechSystem:
         is_speaking = False
         is_person_spoke = False
         
-        try:
-            while True:
-                if self.stt_pause.is_set():
-                    time.sleep(0.1)
-                    continue
-                data = stream.read(4000, exception_on_overflow=False)
-                audio_buffer.extend(data)
-                
-                val_speech = max(abs(int.from_bytes(data[i:i+2], byteorder='little', signed=True)) for i in range(0, len(data), 2))
-                is_speech = val_speech > silence_threshold
-                
-                if is_speech:
-                    silent_chunks = 0
-                    is_speaking = True
-
-                    silent_chunk_limit = int(silent_chunk_limit / 2)
-                    is_person_spoke = True
-                else:
-                    is_speaking = False
-
-                if not is_speaking:
-                    silent_chunks += 1
-                    if silent_chunks > silent_chunk_limit:
-                        silent_chunk_limit = int(silence_limit * 2)
-                        if not is_person_spoke:
-                            self.audio_queue.put("No puedo escucharte, por favor habla más fuerte.")
-                            self.audio_finished.wait(timeout=30)
-                        break
-                
-                if recognizer.AcceptWaveform(data):
-                    pass
-                
-                if is_speaking and silent_chunks > silent_chunk_limit:
-                    break
-                    
-            result_json = recognizer.FinalResult()
-            result = json.loads(result_json)
-            text = result.get("text", "").lower()
+        while True:
+            if self.stt_pause.is_set():
+                time.sleep(0.1)
+                continue
+            data = stream.read(4000, exception_on_overflow=False)
+            audio_buffer.extend(data)
             
-            if text:
-                print(f"Persona: {text}")
+            val_speech = max(abs(int.from_bytes(data[i:i+2], byteorder='little', signed=True)) for i in range(0, len(data), 2))
+            is_speech = val_speech > silence_threshold
+            
+            if is_speech:
+                silent_chunks = 0
+                is_speaking = True
+
+                silent_chunk_limit = int(silent_chunk_limit / 2)
+                is_person_spoke = True
             else:
-                print("No se detectó ninguna entrada de voz.")
+                is_speaking = False
+
+            if not is_speaking:
+                silent_chunks += 1
+                if silent_chunks > silent_chunk_limit:
+                    silent_chunk_limit = int(silence_limit * 2)
+                    if not is_person_spoke:
+                        self.audio_queue.put("No puedo escucharte, por favor habla más fuerte.")
+                        self.audio_finished.wait(timeout=30)
+                    break
+            
+            if recognizer.AcceptWaveform(data):
+                pass
+            
+            if is_speaking and silent_chunks > silent_chunk_limit:
+                break
                 
-        except KeyboardInterrupt:
-            print("\nDetección de voz detenida manualmente.")
-            result_json = recognizer.FinalResult()
-            result = json.loads(result_json)
-            text = result.get("text", "").lower()
-            if text:
-                print(f"Persona: {text}")
-        finally:
-            stream.stop_stream()
-            stream.close()
-            p.terminate()
+        result_json = recognizer.FinalResult()
+        result = json.loads(result_json)
+        text = result.get("text", "").lower()
+        
+        if text:
+            self.get_logger().info("Persona: " + text)
+        else:
+            self.get_logger().info("No se detectó ninguna entrada de voz.")
+                
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
             
         return text
     
@@ -320,9 +311,12 @@ class VoiceAssistantNode(Node):
             self.voice_thread.start()
     
     def run_voice_mode(self):
-        """Ejecuta el asistente en modo voz (offline)"""
-        self.get_logger().info("Modo voz activado (di 'terminar' para salir)")
+        """Ejecuta el asistente en modo voz"""
+        self.get_logger().info("Hola soy Buddy, tu asistente virtual. ¿En qué puedo ayudarte?")
         self.speech_system.start_tts_worker()
+
+        self.speech_system.audio_queue.put("Hola soy Buddy, tu asistente virtual. ¿En qué puedo ayudarte?")
+        self.speech_system.audio_finished.wait(timeout=30)
         
         try:
             while rclpy.ok():
