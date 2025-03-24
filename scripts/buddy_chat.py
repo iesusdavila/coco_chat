@@ -31,7 +31,7 @@ class ConversationModel:
         
     def generate_response(self, user_input, max_tokens=300):
         system_prompt = """
-        Eres Buddy, un asistente virtual amigable para niños que se encuentran en hospitales 
+        Eres Leo, un asistente virtual amigable para niños que se encuentran en hospitales 
         y tienen entre 7 a 12 años. Sigue estas reglas:
         
         1. Respuestas:
@@ -133,7 +133,7 @@ class SpeechSystem:
         buffer = ""
         full_response = ""
         
-        self.get_logger().info("Modelo: ", flush=True)
+        self.node.get_logger().info("Modelo: ")
         
         for token in response_stream:
             content = token['choices'][0]['delta'].get('content', '')
@@ -158,7 +158,7 @@ class SpeechSystem:
     
     def voice_to_text_offline(self):
         """Convierte voz a texto usando Vosk"""
-        self.get_logger().info("Preparado para escuchar... ")
+        self.node.get_logger().info("Preparado para escuchar... ")
 
         while self.tts_active.is_set() or self.stt_pause.is_set():
             time.sleep(0.05)
@@ -169,7 +169,7 @@ class SpeechSystem:
         
         recognizer = KaldiRecognizer(self.vosk_model, 16000)
         
-        self.get_logger().info("El modelo esta escuchando...")
+        self.node.get_logger().info("El modelo esta escuchando...")
         
         silence_limit = 20
         silence_threshold = 3000
@@ -219,9 +219,9 @@ class SpeechSystem:
         text = result.get("text", "").lower()
         
         if text:
-            self.get_logger().info("Persona: " + text)
+            self.node.get_logger().info("Persona: " + text)
         else:
-            self.get_logger().info("No se detectó ninguna entrada de voz.")
+            self.node.get_logger().info("No se detectó ninguna entrada de voz.")
                 
         stream.stop_stream()
         stream.close()
@@ -312,10 +312,10 @@ class VoiceAssistantNode(Node):
     
     def run_voice_mode(self):
         """Ejecuta el asistente en modo voz"""
-        self.get_logger().info("Hola soy Buddy, tu asistente virtual. ¿En qué puedo ayudarte?")
+        self.get_logger().info("Hola soy Leo, tu gran amigo. ¿En qué puedo ayudarte?")
         self.speech_system.start_tts_worker()
 
-        self.speech_system.audio_queue.put("Hola soy Buddy, tu asistente virtual. ¿En qué puedo ayudarte?")
+        self.speech_system.audio_queue.put("Hola soy Leo, tu gran amigo. ¿En qué puedo ayudarte?")
         self.speech_system.audio_finished.wait(timeout=30)
         
         try:
