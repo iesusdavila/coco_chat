@@ -25,7 +25,12 @@ class ConversationModel:
             model_path=model_path,
             n_ctx=context_size,
             verbose=False,
+            use_gpu=True,  
+            n_gpu_layers=10,  
+            threads=4,
+            tensor_split=[1.0]
         )
+
         self.temperature = temperature
         self.conversation_history = []
         
