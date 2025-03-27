@@ -93,15 +93,16 @@ class SpeechSystem:
             use_cuda=use_cuda
         )
         self.audio_queue = queue.Queue()
+
         self.tts_running = threading.Event()
+        self.tts_active = threading.Event()  
         self.audio_finished = threading.Event()
+        self.stt_pause = threading.Event() 
+
         self.tts_thread = None
         
         self.vosk_model = Model(vosk_model_path)
-        self.node = node  
-
-        self.tts_active = threading.Event()  
-        self.stt_pause = threading.Event()   
+        self.node = node    
         
     def start_tts_worker(self):
         """Inicia el hilo de trabajo para TTS"""
@@ -154,21 +155,19 @@ class SpeechSystem:
                 buffer = ""
         
         print()
-        
-        if buffer:
-            for phrase in TextProcessor.clean_text(buffer):
-                if phrase:
-                    self.audio_queue.put(phrase)
+
         return full_response
     
-    def voice_to_text_offline(self):
+    def voice_to_text(self):
         """Convierte voz a texto usando Vosk"""
         self.node.get_logger().info("Preparado para escuchar... ")
 
+        # Comentar para saber si se puede eliminar o cambiar por un if
         while self.tts_active.is_set() or self.stt_pause.is_set():
             time.sleep(0.05)
         
         p = pyaudio.PyAudio()
+        # Intar cambiar el rate y frames_per_buffer
         stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
         stream.start_stream()
         
@@ -181,8 +180,7 @@ class SpeechSystem:
         silent_chunks = 0
         silent_chunk_limit = int(silence_limit * 2)
         
-        audio_buffer = bytearray()
-        is_speaking = False
+        # No hace nada audio_buffer?
         is_person_spoke = False
         
         while True:
@@ -190,21 +188,16 @@ class SpeechSystem:
                 time.sleep(0.1)
                 continue
             data = stream.read(4000, exception_on_overflow=False)
-            audio_buffer.extend(data)
             
             val_speech = max(abs(int.from_bytes(data[i:i+2], byteorder='little', signed=True)) for i in range(0, len(data), 2))
             is_speech = val_speech > silence_threshold
             
             if is_speech:
                 silent_chunks = 0
-                is_speaking = True
-
                 silent_chunk_limit = int(silent_chunk_limit / 2)
                 is_person_spoke = True
-            else:
-                is_speaking = False
 
-            if not is_speaking:
+            if not is_speech:
                 silent_chunks += 1
                 if silent_chunks > silent_chunk_limit:
                     silent_chunk_limit = int(silence_limit * 2)
@@ -216,23 +209,23 @@ class SpeechSystem:
             if recognizer.AcceptWaveform(data):
                 pass
             
-            if is_speaking and silent_chunks > silent_chunk_limit:
+            if is_speech and silent_chunks > silent_chunk_limit:
                 break
                 
         result_json = recognizer.FinalResult()
         result = json.loads(result_json)
         text = result.get("text", "").lower()
-        
-        if text:
-            self.node.get_logger().info("Persona: " + text)
-        else:
-            self.node.get_logger().info("No se detectó ninguna entrada de voz.")
-                
+
         stream.stop_stream()
         stream.close()
         p.terminate()
-            
-        return text
+        
+        if text:
+            self.node.get_logger().info("Persona: " + text)
+            return text
+        else:
+            self.node.get_logger().info("No se detectó ninguna entrada de voz.")
+            return None
     
     def cleanup(self):
         """Limpia recursos del sistema de voz"""
@@ -240,7 +233,6 @@ class SpeechSystem:
         if self.tts_thread:
             self.tts_thread.join()
         self.audio_queue.queue.clear()
-
 
 class VoiceAssistantNode(Node):
     """Nodo ROS2 para el asistente de voz"""
@@ -266,53 +258,20 @@ class VoiceAssistantNode(Node):
             node=self
         )
         
-        self.response_publisher = self.create_publisher(
-            String, 
-            'voice_assistant/response', 
-            10
-        )
+        self.response_publisher = self.create_publisher(String, 'voice_assistant/response', 10)
         
-        self.text_input_subscription = self.create_subscription(
-            String,
-            'voice_assistant/text_input',
-            self.text_input_callback,
-            10
-        )
-        
-        self.timer = self.create_timer(1.0, self.start_voice_mode)
         self.timer_active = True
+        self.start_voice_mode()
         
         self.get_logger().info('Nodo de asistente de voz inicializado')
-    
-    def text_input_callback(self, msg):
-        """Callback para procesar entradas de texto desde ROS2"""
-        user_input = msg.data
-        self.get_logger().info(f'Recibido mensaje de texto: {user_input}')
-        
-        if 'terminar' in user_input.lower():
-            self.get_logger().info('Comando de terminación recibido')
-            self.speech_system.audio_queue.put("Hasta luego, que tengas un buen día.")
-            self.speech_system.audio_finished.wait(timeout=45)
-            rclpy.shutdown()
-            return
-        
-        response_stream = self.conversation_model.generate_response(user_input)
-        response = self.speech_system.process_stream(response_stream)
-        self.conversation_model.add_assistant_response(response)
-        
-        response_msg = String()
-        response_msg.data = response
-        self.response_publisher.publish(response_msg)
     
     def start_voice_mode(self):
         """Inicia el modo de voz cuando el timer se dispara"""
         if self.timer_active:
-            self.timer.cancel()
             self.timer_active = False
             self.get_logger().info('Iniciando modo de voz...')
             
-            self.voice_thread = threading.Thread(target=self.run_voice_mode)
-            self.voice_thread.daemon = True
+            self.voice_thread = threading.Thread(target=self.run_voice_mode, daemon=True)
             self.voice_thread.start()
     
     def run_voice_mode(self):
@@ -321,7 +280,7 @@ class VoiceAssistantNode(Node):
         self.speech_system.start_tts_worker()
 
         self.speech_system.audio_queue.put("Hola soy Leo, tu gran amigo. ¿En qué puedo ayudarte?")
-        self.speech_system.audio_finished.wait(timeout=30)
+        self.speech_system.audio_finished.wait(timeout=10)
         
         try:
             while rclpy.ok():
@@ -329,10 +288,9 @@ class VoiceAssistantNode(Node):
                     time.sleep(0.1)
             
                 self.get_logger().info("Escuchando...")
-                user_input = self.speech_system.voice_to_text_offline()
+                user_input = self.speech_system.voice_to_text()
                 
-                if not user_input:
-                    self.get_logger().info("No se detectó voz, reintentando...")
+                if user_input is None:
                     continue
                 
                 if 'terminar' in user_input:
