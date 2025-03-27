@@ -162,12 +162,11 @@ class SpeechSystem:
         """Convierte voz a texto usando Vosk"""
         self.node.get_logger().info("Preparado para escuchar... ")
 
-        # Comentar para saber si se puede eliminar o cambiar por un if
         while self.tts_active.is_set() or self.stt_pause.is_set():
             time.sleep(0.05)
         
         p = pyaudio.PyAudio()
-        # Intar cambiar el rate y frames_per_buffer
+
         stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
         stream.start_stream()
         
@@ -180,7 +179,6 @@ class SpeechSystem:
         silent_chunks = 0
         silent_chunk_limit = int(silence_limit * 2)
         
-        # No hace nada audio_buffer?
         is_person_spoke = False
         
         while True:
