@@ -8,11 +8,16 @@ find_package(sensor_msgs REQUIRED)
 # Instalar el script Python
 install(PROGRAMS
   scripts/buddy_chat.py
+  scripts/stt_lifecycle_node.py
+  scripts/llm_lifecycle_node.py
+  scripts/tts_lifecycle_node.py
+  scripts/control_manager_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
 # ========== Instalación común ==========
 install(DIRECTORY
+  launch
   models
   scripts
   DESTINATION share/${PROJECT_NAME}
