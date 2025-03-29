@@ -13,7 +13,6 @@ class LifecycleNodesManager(Node):
         
         # Topics to track STT and TTS status
         self.create_subscription(Bool, '/stt_terminado', self.stt_status_callback, 10)
-        self.create_subscription(Bool, '/tts_terminado', self.tts_status_callback, 10)
         
         # Service clients for changing lifecycle node states
         self.stt_state_client = self.create_client(ChangeState, '/stt_lifecycle_node/change_state')
@@ -22,7 +21,6 @@ class LifecycleNodesManager(Node):
         
         # Node state tracking
         self.stt_terminated = False
-        self.tts_terminated = True
 
         # Lock for thread-safe state management
         self.state_lock = threading.Lock()
@@ -46,12 +44,6 @@ class LifecycleNodesManager(Node):
             self.stt_terminated = msg.data
             self.manage_node_lifecycle()
     
-    def tts_status_callback(self, msg):
-        """Handle TTS status changes"""
-        with self.state_lock:
-            self.tts_terminated = msg.data
-            self.manage_node_lifecycle()
-    
     def manage_node_lifecycle(self):
         """Manage nodes based on STT and TTS status"""
         threading.Thread(target=self._manage_lifecycle_thread).start()
@@ -59,17 +51,15 @@ class LifecycleNodesManager(Node):
     def _manage_lifecycle_thread(self):
         """Thread-safe lifecycle management"""
         with self.state_lock:
-            self.get_logger().info(f"STT: {self.stt_terminated}, TTS: {self.tts_terminated}")
+            self.get_logger().info(f"STT: {self.stt_terminated}")
             
-            if self.stt_terminated and not self.tts_terminated:
+            if self.stt_terminated:
                 # Change states in a separate thread
                 self.change_node_state('/llm_lifecycle_node', Transition.TRANSITION_ACTIVATE)
                 self.change_node_state('/tts_lifecycle_node', Transition.TRANSITION_ACTIVATE)
                 self.change_node_state('/stt_lifecycle_node', Transition.TRANSITION_DEACTIVATE)
-            
-            elif self.tts_terminated and not self.stt_terminated:
-                # Activate STT, Deactivate LLM
-                # self.change_node_state('/stt_lifecycle_node', Transition.TRANSITION_CONFIGURE)
+            else:
+                # Activate STT
                 self.change_node_state('/stt_lifecycle_node', Transition.TRANSITION_ACTIVATE)
                 self.change_node_state('/tts_lifecycle_node', Transition.TRANSITION_DEACTIVATE)
                 self.change_node_state('/llm_lifecycle_node', Transition.TRANSITION_DEACTIVATE)

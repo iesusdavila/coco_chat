@@ -43,7 +43,6 @@ class STTLifecycleNode(LifecycleNode):
         
         self.response_publisher = self.create_publisher(PersonResponse, '/response_person', 10)
         self.stt_status_publisher = self.create_publisher(Bool, '/stt_terminado', 10)
-        self.tts_status_publisher = self.create_publisher(Bool, '/tts_terminado', 10)
         
         self.vosk_model = None
         self.recognition_thread = None
@@ -105,10 +104,6 @@ class STTLifecycleNode(LifecycleNode):
                         status_msg = Bool()
                         status_msg.data = True
                         self.stt_status_publisher.publish(status_msg)
-
-                        status_msg = Bool()
-                        status_msg.data = False
-                        self.tts_status_publisher.publish(status_msg)
 
                         self.is_recognizing = False
         

@@ -32,8 +32,7 @@ class TTSLifecycleNode(LifecycleNode):
         # TTS Voice
         self.voice = None
         
-        # TTS Status Publisher
-        self.tts_status_publisher = self.create_publisher(Bool, '/tts_terminado', 10)
+        # STT Status Publisher
         self.stt_status_publisher = self.create_publisher(Bool, '/stt_terminado', 10)
 
         # Subscribers
@@ -131,11 +130,6 @@ class TTSLifecycleNode(LifecycleNode):
         
         # If complete and playsound is not playing, publish TTS status
         if feedback_msg.feedback.progress == 1.0:
-            self.get_logger().info('TTS synthesis complete')
-            status_msg = Bool()
-            status_msg.data = True
-            self.tts_status_publisher.publish(status_msg)
-
             # Publish STT status
             stt_status_msg = Bool()
             stt_status_msg.data = False
