@@ -6,7 +6,6 @@ from launch.actions import RegisterEventHandler
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    pkg_share_dir = get_package_share_directory('buddy_chat')
 
     stt_node = LifecycleNode(
         name='stt_lifecycle_node',
