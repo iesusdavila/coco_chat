@@ -1,19 +1,13 @@
 #!/usr/bin/env python3
 
 import rclpy
-from rclpy.node import Node
-from rclpy.lifecycle import LifecycleNode
-from rclpy.lifecycle.node import LifecycleState
-from rclpy.lifecycle import TransitionCallbackReturn 
-from lifecycle_msgs.msg import Transition
-from std_msgs.msg import Bool, String
+from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn 
+from rclpy.action import ActionServer
 from buddy_interfaces.msg import PersonResponse, LLMStatus
 from buddy_interfaces.action import ProcessResponse
 from llama_cpp import Llama
 from ament_index_python.packages import get_package_share_directory
 import os
-import rclpy.action
-from rclpy.action import ActionServer
 import re
 
 class TextProcessor:

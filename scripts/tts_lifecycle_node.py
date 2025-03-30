@@ -1,23 +1,18 @@
 #!/usr/bin/env python3
 
 import rclpy
-from rclpy.node import Node
 from rclpy.action import ActionClient
-from rclpy.lifecycle import LifecycleNode
-from rclpy.lifecycle import TransitionCallbackReturn 
-from rclpy.lifecycle.node import LifecycleState
-from lifecycle_msgs.msg import Transition
+from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn 
 from std_msgs.msg import Bool
+from buddy_interfaces.msg import LLMStatus
 from buddy_interfaces.action import ProcessResponse
 from ament_index_python.packages import get_package_share_directory
 from piper import PiperVoice
+from playsound import playsound
 import os
 import threading
-import time
 import tempfile
 import wave
-from playsound import playsound
-from buddy_interfaces.msg import LLMStatus
 import queue
 
 class TTSLifecycleNode(LifecycleNode):

@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 
 import rclpy
-from rclpy.node import Node
-from rclpy.lifecycle import LifecycleNode
-from rclpy.lifecycle.node import LifecycleState
-from rclpy.lifecycle import TransitionCallbackReturn 
-from lifecycle_msgs.msg import Transition
-from std_msgs.msg import Bool, String
+from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn 
+from std_msgs.msg import Bool
 from buddy_interfaces.msg import PersonResponse
 from ament_index_python.packages import get_package_share_directory
 from vosk import Model, KaldiRecognizer, SetLogLevel
