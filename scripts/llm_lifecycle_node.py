@@ -122,16 +122,8 @@ class LLMLifecycleNode(LifecycleNode):
                         
                 buffer = ""
             
-            # # Provide feedback
-            # feedback_msg.current_chunk = content
-            # self.get_logger().info(f"Chunk procesado: {content}")
-            # feedback_msg.progress = len(full_response) / 300.0  # Normalized progress
-            # self.get_logger().info(f"Progreso: {feedback_msg.progress:.2%}")
-            # goal_handle.publish_feedback(feedback_msg)
-            
             if goal_handle.is_cancel_requested:
                 goal_handle.canceled()
-                # return ProcessResponse.Result()
                 result_msg.full_response = "Proceso cancelado"
                 result_msg.completed = False
                 return result_msg

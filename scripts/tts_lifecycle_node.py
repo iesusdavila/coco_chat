@@ -90,7 +90,6 @@ class TTSLifecycleNode(LifecycleNode):
                 goal_msg.input_text = self.text_person
             else:
                 return 
-            # goal_msg.input_text = "Generar respuesta"
 
             self._action_client.wait_for_server()
             
@@ -104,13 +103,11 @@ class TTSLifecycleNode(LifecycleNode):
             self.get_logger().info('Waiting for goal to complete')
             
             # Wait for goal to complete
-            # future.add_done_callback(self.result_callback)
             rclpy.spin_until_future_complete(self, future)
     
     def _feedback_callback(self, feedback_msg):
         """Process feedback and convert text to speech"""
         chunk = feedback_msg.feedback.current_chunk
-        # self.audio_queue.put(chunk)
         
         if chunk and chunk != "[END_FINAL]":
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as fp:
@@ -123,7 +120,6 @@ class TTSLifecycleNode(LifecycleNode):
                 # Play audio
                 playsound(fp.name)
         
-        # If complete and playsound is not playing, publish TTS status
         if feedback_msg.feedback.progress == 1.0:
             # Publish STT status
             stt_status_msg = Bool()
