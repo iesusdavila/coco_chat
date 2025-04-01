@@ -66,7 +66,7 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         
         // Initialize the model
         llama_model_params model_params = llama_model_default_params();
-        model_params.n_gpu_layers = 10;  // Same as n_gpu_layers in Python
+        model_params.n_gpu_layers = 12;  // Same as n_gpu_layers in Python
         
         model_ = llama_model_load_from_file(model_path_.c_str(), model_params);
         if (!model_) {
@@ -80,6 +80,7 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         llama_context_params ctx_params = llama_context_default_params();
         ctx_params.n_ctx = 2048;  // Same as n_ctx in Python
         ctx_params.n_batch = 2048;
+        ctx_params.n_threads = 4;
         
         ctx_ = llama_init_from_model(model_, ctx_params);
         if (!ctx_) {
