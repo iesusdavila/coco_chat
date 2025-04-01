@@ -79,31 +79,30 @@ class TTSLifecycleNode(LifecycleNode):
     
     def _listen_and_speak(self):
         """Listen for LLAMA responses and convert to speech"""
-        while rclpy.ok():
-            if not self._action_client.wait_for_server(timeout_sec=1.0):
-                self.get_logger().warn('Action server not available, retrying...')
-                continue
-            
-            # Send goal to get response
-            goal_msg = ProcessResponse.Goal()
-            if self.text_person is not None:
-                goal_msg.input_text = self.text_person
-            else:
-                return 
+        if not self._action_client.wait_for_server(timeout_sec=1.0):
+            self.get_logger().warn('Action server not available, retrying...')
+            return
+        
+        # Send goal to get response
+        goal_msg = ProcessResponse.Goal()
+        if self.text_person is not None:
+            goal_msg.input_text = self.text_person
+        else:
+            return 
 
-            self._action_client.wait_for_server()
-            
-            self.get_logger().info('Sending goal to LLAMA response')
-            # Send goal and wait for result
-            future = self._action_client.send_goal_async(
-                goal_msg,
-                feedback_callback=self._feedback_callback
-            )
+        self._action_client.wait_for_server()
+        
+        self.get_logger().info('Sending goal to LLAMA response')
+        # Send goal and wait for result
+        future = self._action_client.send_goal_async(
+            goal_msg,
+            feedback_callback=self._feedback_callback
+        )
 
-            self.get_logger().info('Waiting for goal to complete')
-            
-            # Wait for goal to complete
-            rclpy.spin_until_future_complete(self, future)
+        self.get_logger().info('Waiting for goal to complete')
+        
+        # Wait for goal to complete
+        rclpy.spin_until_future_complete(self, future)
     
     def _feedback_callback(self, feedback_msg):
         """Process feedback and convert text to speech"""
