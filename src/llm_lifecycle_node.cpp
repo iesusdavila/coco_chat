@@ -11,11 +11,10 @@ std::vector<std::string> TextProcessor::clean_text(const std::string& text) {
     cleaned = std::regex_replace(cleaned, std::regex("\\s+"), " ");
     
     std::vector<std::string> sentences;
-    // Usar regex compatible (sin lookbehind):
-    std::regex sentence_regex("([.!?])\\s+");  // Detecta puntuación seguida de espacios
+    std::regex sentence_regex("([.!?])\\s+"); 
     
     std::sregex_token_iterator iter(cleaned.begin(), cleaned.end(), 
-                                    sentence_regex, {-1, 0}); // -1: no match, 0: match
+                                    sentence_regex, {-1, 0}); 
     std::sregex_token_iterator end;
     
     std::string sentence;
@@ -36,7 +35,6 @@ std::vector<std::string> TextProcessor::clean_text(const std::string& text) {
 LLMLifecycleNode::LLMLifecycleNode(const rclcpp::NodeOptions& options)
     : LifecycleNode("llm_lifecycle_node", options) {
     
-    // Get model path
     std::string pkg_share_dir = ament_index_cpp::get_package_share_directory("buddy_chat");
     model_path_ = pkg_share_dir + "/models/LLM/models--ggml-org--Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF/snapshots/0aba27dd2f1c7f4941a94a5c59d80e0a256f9ff8/meta-llama-3.1-8b-instruct-q4_0.gguf";
     
@@ -44,7 +42,6 @@ LLMLifecycleNode::LLMLifecycleNode(const rclcpp::NodeOptions& options)
 }
 
 LLMLifecycleNode::~LLMLifecycleNode() {
-    // Free resources
     if (sampler_ != nullptr) {
         llama_sampler_free(sampler_);
     }
@@ -61,12 +58,10 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
     RCLCPP_INFO(get_logger(), "Configuring LLM Node");
     
     try {
-        // Load dynamic backends
         ggml_backend_load_all();
         
-        // Initialize the model
         llama_model_params model_params = llama_model_default_params();
-        model_params.n_gpu_layers = 12;  // Same as n_gpu_layers in Python
+        model_params.n_gpu_layers = 12;  
         
         model_ = llama_model_load_from_file(model_path_.c_str(), model_params);
         if (!model_) {
@@ -76,9 +71,8 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         
         vocab_ = llama_model_get_vocab(model_);
         
-        // Initialize the context
         llama_context_params ctx_params = llama_context_default_params();
-        ctx_params.n_ctx = 2048;  // Same as n_ctx in Python
+        ctx_params.n_ctx = 2048;  
         ctx_params.n_batch = 2048;
         ctx_params.n_threads = 4;
         
@@ -88,22 +82,17 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
             return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
         }
         
-        // Initialize the sampler
         sampler_ = llama_sampler_chain_init(llama_sampler_chain_default_params());
         llama_sampler_chain_add(sampler_, llama_sampler_init_min_p(0.05f, 1));
-        llama_sampler_chain_add(sampler_, llama_sampler_init_temp(0.7f)); // Same as temperature in Python
+        llama_sampler_chain_add(sampler_, llama_sampler_init_temp(0.7f)); 
         llama_sampler_chain_add(sampler_, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
         
-        // Create subscriptions 
         subscription_ = this->create_subscription<buddy_interfaces::msg::PersonResponse>(
             "/response_person", 10, 
             std::bind(&LLMLifecycleNode::process_input, this, _1));
             
-        // Create publishers
-        llm_status_publisher_ = this->create_publisher<buddy_interfaces::msg::LLMStatus>(
-            "/llm_status", 10);
+        llm_status_publisher_ = this->create_publisher<buddy_interfaces::msg::LLMStatus>("/llm_status", 10);
             
-        // Create action server
         action_server_ = rclcpp_action::create_server<buddy_interfaces::action::ProcessResponse>(
             this,
             "/response_llama",
@@ -121,20 +110,14 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
 LLMLifecycleNode::on_activate(const rclcpp_lifecycle::State& state) {
     RCLCPP_INFO(get_logger(), "Activating LLM Node");
-    
-    // Activate the publisher
-    // llm_status_publisher_->on_activate();
-    
+        
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
 LLMLifecycleNode::on_deactivate(const rclcpp_lifecycle::State& state) {
     RCLCPP_INFO(get_logger(), "Deactivating LLM Node");
-    
-    // Deactivate the publisher
-    // llm_status_publisher_->on_deactivate();
-    
+        
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
@@ -148,7 +131,6 @@ void LLMLifecycleNode::process_input(const buddy_interfaces::msg::PersonResponse
     llm_status_publisher_->publish(*status_msg);
 }
 
-// Action Server methods
 rclcpp_action::GoalResponse LLMLifecycleNode::handle_goal(
     const rclcpp_action::GoalUUID& uuid,
     std::shared_ptr<const buddy_interfaces::action::ProcessResponse::Goal> goal)
@@ -168,7 +150,6 @@ rclcpp_action::CancelResponse LLMLifecycleNode::handle_cancel(
 
 void LLMLifecycleNode::handle_accepted(const std::shared_ptr<GoalHandleProcessResponse> goal_handle)
 {
-    // Start a new thread to process the goal
     std::thread{std::bind(&LLMLifecycleNode::execute_response_generation, this, _1), goal_handle}.detach();
 }
 
@@ -191,17 +172,14 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         RCLCPP_INFO(get_logger(), "LLAMA resources initialized");
     }
     
-    // System prompt
     const std::string system_prompt = 
         "Eres Leo, un asistente virtual amigable para niños que se encuentran en hospitales "
         "y tienen entre 7 a 12 años.";
     
-    // Set up the conversation history
     conversation_history_.clear();
     conversation_history_.push_back({"system", system_prompt});
     conversation_history_.push_back({"user", goal_handle->get_goal()->input_text});
     
-    // Format the messages using the chat template
     const char* tmpl = llama_model_chat_template(model_);
     std::vector<llama_chat_message> llama_messages;
     
@@ -227,7 +205,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     RCLCPP_INFO(get_logger(), "Generando respuesta...");
     RCLCPP_INFO(get_logger(), "Mensaje de entrada: %s", goal_handle->get_goal()->input_text.c_str());
     
-    // Tokenize the prompt
     const int n_prompt_tokens = -llama_tokenize(vocab_, prompt.c_str(), prompt.size(), NULL, 0, true, true);
     std::vector<llama_token> prompt_tokens(n_prompt_tokens);
     if (llama_tokenize(vocab_, prompt.c_str(), prompt.size(), prompt_tokens.data(), prompt_tokens.size(), llama_get_kv_cache_used_cells(ctx_) == 0, true) < 0) {
@@ -238,17 +215,15 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         return;
     }
     
-    // Prepare a batch for the prompt
     llama_batch batch = llama_batch_get_one(prompt_tokens.data(), prompt_tokens.size());
     std::string buffer;
     std::string full_response;
     
     llama_token new_token_id;
-    int max_tokens = 300; // Same as in Python
+    int max_tokens = 300; 
     int token_count = 0;
     
     while (token_count < max_tokens) {
-        // Check if we have enough space in the context
         int n_ctx = llama_n_ctx(ctx_);
         int n_ctx_used = llama_get_kv_cache_used_cells(ctx_);
         if (n_ctx_used + batch.n_tokens > n_ctx) {
@@ -256,7 +231,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
             break;
         }
         
-        // Check if the goal has been cancelled
         if (goal_handle->is_canceling()) {
             RCLCPP_INFO(get_logger(), "Goal cancelled");
             result->full_response = "Proceso cancelado";
@@ -270,15 +244,12 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
             break;
         }
         
-        // Sample the next token
         new_token_id = llama_sampler_sample(sampler_, ctx_, -1);
         
-        // Is it an end of generation?
         if (llama_vocab_is_eog(vocab_, new_token_id)) {
             break;
         }
         
-        // Convert the token to a string
         char token_buf[256];
         int n = llama_token_to_piece(vocab_, new_token_id, token_buf, sizeof(token_buf), 0, true);
         if (n < 0) {
@@ -290,7 +261,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         buffer += piece;
         full_response += piece;
         
-        // Check if we should publish feedback
         if (!buffer.empty() && (piece.back() == ' ' || piece.back() == '.' || 
                                piece.back() == ',' || piece.back() == '!' || 
                                piece.back() == '?')) {
@@ -299,14 +269,13 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
                 if (!phrase.empty()) {
                     feedback->current_chunk = phrase;
                     RCLCPP_INFO(get_logger(), "Chunk procesado: %s", phrase.c_str());
-                    feedback->progress = 0.0; // Normalized progress
+                    feedback->progress = 0.0; 
                     goal_handle->publish_feedback(feedback);
                 }
             }
             buffer.clear();
         }
         
-        // Prepare the next batch with the sampled token
         batch = llama_batch_get_one(&new_token_id, 1);
         token_count++;
     }
@@ -317,16 +286,14 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     feedback->progress = 1.0;
     goal_handle->publish_feedback(feedback);
     
-    // Add response to conversation history
     conversation_history_.push_back({"assistant", full_response});
     
-    // Set the result
     result->full_response = full_response;
     result->completed = true;
     goal_handle->succeed(result);
 }
 
-} // namespace buddy_chat
+}
 
 int main(int argc, char * argv[]) {
     rclcpp::init(argc, argv);
