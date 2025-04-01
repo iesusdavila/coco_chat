@@ -13,8 +13,6 @@
 #include <mutex>
 
 #include "llama.h"
-#include "buddy_interfaces/msg/person_response.hpp"
-#include "buddy_interfaces/msg/llm_status.hpp"
 #include "buddy_interfaces/action/process_response.hpp"
 
 namespace buddy_chat {
@@ -32,8 +30,6 @@ public:
     ~LLMLifecycleNode();
 
 private:
-    rclcpp::Subscription<buddy_interfaces::msg::PersonResponse>::SharedPtr subscription_;
-    rclcpp::Publisher<buddy_interfaces::msg::LLMStatus>::SharedPtr llm_status_publisher_;
     rclcpp_action::Server<buddy_interfaces::action::ProcessResponse>::SharedPtr action_server_;
     std::mutex llama_mutex_;
     
@@ -57,8 +53,6 @@ private:
 
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
     on_deactivate(const rclcpp_lifecycle::State& state);
-
-    void process_input(const buddy_interfaces::msg::PersonResponse::SharedPtr msg);
 
     rclcpp_action::GoalResponse handle_goal(
         const rclcpp_action::GoalUUID& uuid,

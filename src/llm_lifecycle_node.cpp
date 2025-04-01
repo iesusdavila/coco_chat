@@ -86,13 +86,7 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         llama_sampler_chain_add(sampler_, llama_sampler_init_min_p(0.05f, 1));
         llama_sampler_chain_add(sampler_, llama_sampler_init_temp(0.7f)); 
         llama_sampler_chain_add(sampler_, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
-        
-        subscription_ = this->create_subscription<buddy_interfaces::msg::PersonResponse>(
-            "/response_person", 10, 
-            std::bind(&LLMLifecycleNode::process_input, this, _1));
-            
-        llm_status_publisher_ = this->create_publisher<buddy_interfaces::msg::LLMStatus>("/llm_status", 10);
-            
+                        
         action_server_ = rclcpp_action::create_server<buddy_interfaces::action::ProcessResponse>(
             this,
             "/response_llama",
@@ -119,16 +113,6 @@ LLMLifecycleNode::on_deactivate(const rclcpp_lifecycle::State& state) {
     RCLCPP_INFO(get_logger(), "Deactivating LLM Node");
         
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
-}
-
-void LLMLifecycleNode::process_input(const buddy_interfaces::msg::PersonResponse::SharedPtr msg) {
-    RCLCPP_INFO(get_logger(), "Procesando mensaje de la persona: %s", msg->text.c_str());
-    
-    auto status_msg = std::make_shared<buddy_interfaces::msg::LLMStatus>();
-    status_msg->is_processing = true;
-    status_msg->current_response = msg->text;
-    status_msg->timestamp = this->now();
-    llm_status_publisher_->publish(*status_msg);
 }
 
 rclcpp_action::GoalResponse LLMLifecycleNode::handle_goal(

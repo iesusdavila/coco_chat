@@ -4,7 +4,7 @@ import rclpy
 from rclpy.action import ActionClient
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn 
 from std_msgs.msg import Bool
-from buddy_interfaces.msg import LLMStatus
+from buddy_interfaces.msg import PersonResponse
 from buddy_interfaces.action import ProcessResponse
 from ament_index_python.packages import get_package_share_directory
 from piper import PiperVoice
@@ -31,7 +31,7 @@ class TTSLifecycleNode(LifecycleNode):
         self.stt_status_publisher = self.create_publisher(Bool, '/stt_terminado', 10)
 
         # Subscribers
-        self.create_subscription(LLMStatus, '/llm_status', self.process_input_person, 10)
+        self.create_subscription(PersonResponse, '/response_person', self.process_input_person, 10)
         self.text_person = None
         
         # Action Client for LLAMA response
@@ -40,8 +40,8 @@ class TTSLifecycleNode(LifecycleNode):
     def process_input_person(self, msg):
         """Process input from person response topic"""
         self.get_logger().info('TTS is ready to speak')
-        self.get_logger().info(f'Processing input: {msg.current_response}')
-        self.text_person = msg.current_response
+        self.get_logger().info(f'Processing input: {msg.text}')
+        self.text_person = msg.text
     
     def on_configure(self, state):
         self.get_logger().info('Configuring TTS Node')
