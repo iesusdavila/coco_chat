@@ -16,7 +16,7 @@ def generate_launch_description():
         name='llm_lifecycle_node',
         namespace='',
         package='buddy_chat',
-        executable='llm_lifecycle_node.py',
+        executable='llm_lifecycle_node',
         output='screen',
     )
 
