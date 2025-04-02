@@ -245,19 +245,43 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         buffer += piece;
         full_response += piece;
         
-        if (!buffer.empty() && (piece.back() == ' ' || piece.back() == '.' || 
-                               piece.back() == ',' || piece.back() == '!' || 
-                               piece.back() == '?')) {
-            std::vector<std::string> clean_phrases = TextProcessor::clean_text(buffer);
-            for (const auto& phrase : clean_phrases) {
-                if (!phrase.empty()) {
-                    feedback->current_chunk = phrase;
-                    std::cout << "" << phrase << std::endl;
-                    feedback->progress = 0.0; 
-                    goal_handle->publish_feedback(feedback);
+        size_t last_pos = 0;
+        std::vector<std::string> sentences;
+
+        for (size_t i = 0; i < buffer.size(); ++i) {
+            char current_char = buffer[i];
+            if (current_char == '.' || current_char == '!' || current_char == '?') {
+                if (i + 1 >= buffer.size() || std::isspace(buffer[i + 1])) {
+                    std::string sentence = buffer.substr(last_pos, i - last_pos + 1);
+                    
+                    sentence.erase(std::find_if(sentence.rbegin(), sentence.rend(), [](int ch) {
+                        return !std::isspace(ch);
+                    }).base(), sentence.end());
+                    
+                    sentences.push_back(sentence);
+                    
+                    last_pos = i + 1;
+                    while (last_pos < buffer.size() && std::isspace(buffer[last_pos])) {
+                        last_pos++;
+                    }
+                    i = last_pos - 1;  
                 }
             }
-            buffer.clear();
+        }
+
+        if (!sentences.empty()) {
+            for (const std::string& sentence : sentences) {
+                std::vector<std::string> clean_phrases = TextProcessor::clean_text(sentence);
+                for (const auto& phrase : clean_phrases) {
+                    if (!phrase.empty()) {
+                        feedback->current_chunk = phrase;
+                        std::cout << phrase << std::endl;
+                        feedback->progress = 0.0;
+                        goal_handle->publish_feedback(feedback);
+                    }
+                }
+            }
+            buffer = buffer.substr(last_pos);
         }
         
         batch = llama_batch_get_one(&new_token_id, 1);
