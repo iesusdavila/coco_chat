@@ -245,43 +245,35 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         buffer += piece;
         full_response += piece;
         
-        size_t last_pos = 0;
-        std::vector<std::string> sentences;
+        size_t sentence_end = 0;
+        size_t buffer_len = buffer.length();
 
-        for (size_t i = 0; i < buffer.size(); ++i) {
-            char current_char = buffer[i];
-            if (current_char == '.' || current_char == '!' || current_char == '?') {
-                if (i + 1 >= buffer.size() || std::isspace(buffer[i + 1])) {
-                    std::string sentence = buffer.substr(last_pos, i - last_pos + 1);
-                    
-                    sentence.erase(std::find_if(sentence.rbegin(), sentence.rend(), [](int ch) {
-                        return !std::isspace(ch);
-                    }).base(), sentence.end());
-                    
-                    sentences.push_back(sentence);
-                    
-                    last_pos = i + 1;
-                    while (last_pos < buffer.size() && std::isspace(buffer[last_pos])) {
-                        last_pos++;
-                    }
-                    i = last_pos - 1;  
-                }
+        while (sentence_end < buffer_len) {
+            size_t next_end = buffer.find_first_of(".!?", sentence_end);
+            
+            if (next_end == std::string::npos) break;
+            
+            if (next_end + 1 > buffer_len || std::isspace(buffer[next_end + 1])) {
+                sentence_end = next_end + 1;
+            } else {
+                sentence_end = next_end + 1;
+                continue;
             }
-        }
-
-        if (!sentences.empty()) {
-            for (const std::string& sentence : sentences) {
-                std::vector<std::string> clean_phrases = TextProcessor::clean_text(sentence);
-                for (const auto& phrase : clean_phrases) {
-                    if (!phrase.empty()) {
-                        feedback->current_chunk = phrase;
-                        std::cout << phrase << std::endl;
-                        feedback->progress = 0.0;
-                        goal_handle->publish_feedback(feedback);
-                    }
-                }
+            
+            std::string sentence = buffer.substr(0, sentence_end);
+            sentence.erase(sentence.find_last_not_of(" \t\n\r") + 1);  
+            
+            if (!sentence.empty()) {
+                std::string clean_phrase = TextProcessor::clean_text(sentence).front();
+                feedback->current_chunk = clean_phrase;
+                feedback->progress = 0.0;
+                std::cout << clean_phrase << std::endl;
+                goal_handle->publish_feedback(feedback);
+                
+                buffer = buffer.substr(sentence_end);
+                buffer_len = buffer.length();
+                sentence_end = 0;  
             }
-            buffer = buffer.substr(last_pos);
         }
         
         batch = llama_batch_get_one(&new_token_id, 1);
