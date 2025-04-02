@@ -7,14 +7,23 @@ using std::placeholders::_3;
 namespace buddy_chat {
 
 std::vector<std::string> TextProcessor::clean_text(const std::string& text) {
-    std::string cleaned = std::regex_replace(text, std::regex("[!¡?¿*,.:;()\\[\\]{}]"), " ");
-    cleaned = std::regex_replace(cleaned, std::regex("\\s+"), " ");
+    std::locale::global(std::locale(""));
+    std::cout.imbue(std::locale());
+        
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    std::wstring wtext = converter.from_bytes(text);
     
+    std::wregex punct_regex(L"[!¡?¿*,.:;()\\[\\]{}]");
+    std::wstring wcleaned = std::regex_replace(wtext, punct_regex, L" ");
+    
+    std::wregex space_regex(L"\\s+");
+    wcleaned = std::regex_replace(wcleaned, space_regex, L" ");
+    
+    std::string cleaned = converter.to_bytes(wcleaned);
+        
     std::vector<std::string> sentences;
-    std::regex sentence_regex("([.!?])\\s+"); 
-    
-    std::sregex_token_iterator iter(cleaned.begin(), cleaned.end(), 
-                                    sentence_regex, {-1, 0}); 
+    std::regex sentence_regex("([.!?])\\s+");
+    std::sregex_token_iterator iter(cleaned.begin(), cleaned.end(), sentence_regex, {-1, 0});
     std::sregex_token_iterator end;
     
     std::string sentence;
