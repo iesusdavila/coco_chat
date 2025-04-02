@@ -39,8 +39,6 @@ class TTSLifecycleNode(LifecycleNode):
     
     def process_input_person(self, msg):
         """Process input from person response topic"""
-        self.get_logger().info('TTS is ready to speak')
-        self.get_logger().info(f'Processing input: {msg.text}')
         self.text_person = msg.text
     
     def on_configure(self, state):
@@ -56,7 +54,6 @@ class TTSLifecycleNode(LifecycleNode):
             
             return TransitionCallbackReturn.SUCCESS
         except Exception as e:
-            self.get_logger().error(f'Failed to configure: {str(e)}')
             return TransitionCallbackReturn.FAILURE
     
     def on_activate(self, state):
@@ -80,7 +77,6 @@ class TTSLifecycleNode(LifecycleNode):
     def _listen_and_speak(self):
         """Listen for LLAMA responses and convert to speech"""
         if not self._action_client.wait_for_server(timeout_sec=1.0):
-            self.get_logger().warn('Action server not available, retrying...')
             return
         
         # Send goal to get response
@@ -92,7 +88,6 @@ class TTSLifecycleNode(LifecycleNode):
 
         self._action_client.wait_for_server()
         
-        self.get_logger().info('Sending goal to LLAMA response')
         # Send goal and wait for result
         future = self._action_client.send_goal_async(
             goal_msg,
@@ -128,10 +123,6 @@ class TTSLifecycleNode(LifecycleNode):
     def result_callback(self, future):
         """Procesa el resultado final de la acción"""
         result = future.result()
-        if result:
-            self.get_logger().info('Objetivo completado con éxito')
-        else:
-            self.get_logger().error('Error en la acción de LLAMA')
 
 def main(args=None):
     rclpy.init(args=args)

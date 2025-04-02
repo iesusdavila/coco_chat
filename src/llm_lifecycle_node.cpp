@@ -128,7 +128,6 @@ rclcpp_action::GoalResponse LLMLifecycleNode::handle_goal(
     const rclcpp_action::GoalUUID& uuid,
     std::shared_ptr<const buddy_interfaces::action::ProcessResponse::Goal> goal)
 {
-    RCLCPP_INFO(get_logger(), "Received goal request with text: %s", goal->input_text.c_str());
     (void)uuid;
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
@@ -136,7 +135,6 @@ rclcpp_action::GoalResponse LLMLifecycleNode::handle_goal(
 rclcpp_action::CancelResponse LLMLifecycleNode::handle_cancel(
     const std::shared_ptr<GoalHandleProcessResponse> goal_handle)
 {
-    RCLCPP_INFO(get_logger(), "Received request to cancel goal");
     (void)goal_handle;
     return rclcpp_action::CancelResponse::ACCEPT;
 }
@@ -148,21 +146,15 @@ void LLMLifecycleNode::handle_accepted(const std::shared_ptr<GoalHandleProcessRe
 
 void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHandleProcessResponse> goal_handle)
 {
-    RCLCPP_INFO(get_logger(), "Executing goal");
-
     std::lock_guard<std::mutex> lock(llama_mutex_); 
     
     auto feedback = std::make_shared<buddy_interfaces::action::ProcessResponse::Feedback>();
     auto result = std::make_shared<buddy_interfaces::action::ProcessResponse::Result>();
 
     if (!model_ || !ctx_ || !sampler_) {
-        RCLCPP_INFO(get_logger(), "LLAMA resources not initialized");
         result->completed = false;
         goal_handle->abort(result);
         return;
-    } 
-    else {
-        RCLCPP_INFO(get_logger(), "LLAMA resources initialized");
     }
     
     const std::string system_prompt = 
@@ -195,7 +187,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     }
     
     std::string prompt(formatted.begin(), formatted.begin() + len);
-    RCLCPP_INFO(get_logger(), "Generando respuesta...");
     RCLCPP_INFO(get_logger(), "Mensaje de entrada: %s", goal_handle->get_goal()->input_text.c_str());
     
     const int n_prompt_tokens = -llama_tokenize(vocab_, prompt.c_str(), prompt.size(), NULL, 0, true, true);
@@ -216,6 +207,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     int max_tokens = 300; 
     int token_count = 0;
     
+    RCLCPP_INFO(get_logger(), "Modelo: ");
     while (token_count < max_tokens) {
         int n_ctx = llama_n_ctx(ctx_);
         int n_ctx_used = llama_get_kv_cache_used_cells(ctx_);
@@ -225,7 +217,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         }
         
         if (goal_handle->is_canceling()) {
-            RCLCPP_INFO(get_logger(), "Goal cancelled");
             result->full_response = "Proceso cancelado";
             result->completed = false;
             goal_handle->canceled(result);
@@ -261,7 +252,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
             for (const auto& phrase : clean_phrases) {
                 if (!phrase.empty()) {
                     feedback->current_chunk = phrase;
-                    RCLCPP_INFO(get_logger(), "Chunk procesado: %s", phrase.c_str());
+                    std::cout << "" << phrase << std::endl;
                     feedback->progress = 0.0; 
                     goal_handle->publish_feedback(feedback);
                 }
@@ -273,9 +264,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         token_count++;
     }
     
-    RCLCPP_INFO(get_logger(), "Toda la respuesta generada por el modelo");
     feedback->current_chunk = "[END_FINAL]";
-    RCLCPP_INFO(get_logger(), "PARTE FINAL: %s", feedback->current_chunk.c_str());
     feedback->progress = 1.0;
     goal_handle->publish_feedback(feedback);
     

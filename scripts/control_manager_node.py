@@ -50,9 +50,7 @@ class LifecycleNodesManager(Node):
 
     def _manage_lifecycle_thread(self):
         """Thread-safe lifecycle management"""
-        with self.state_lock:
-            self.get_logger().info(f"STT: {self.stt_terminated}")
-            
+        with self.state_lock:            
             if self.stt_terminated:
                 # Change states in a separate thread
                 self.change_node_state('/llm_lifecycle_node', Transition.TRANSITION_ACTIVATE)
@@ -66,7 +64,6 @@ class LifecycleNodesManager(Node):
     
     def change_node_state(self, node_name, transition_id):
         """Asynchronous node state change"""
-        self.get_logger().info(f"Changing state of {node_name} to {transition_id}")
 
         req = ChangeState.Request()
         req.transition.id = transition_id
@@ -81,7 +78,6 @@ class LifecycleNodesManager(Node):
         
         def call_service():
             if not client.wait_for_service(timeout_sec=5.0):
-                self.get_logger().warn(f"Service for {node_name} not available")
                 return 
             future = client.call_async(req)
             rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)

@@ -51,7 +51,6 @@ class STTLifecycleNode(LifecycleNode):
             self.vosk_model = Model(self.vosk_model_path)
             return TransitionCallbackReturn.SUCCESS
         except Exception as e:
-            self.get_logger().error(f'Failed to configure: {str(e)}')
             return TransitionCallbackReturn.FAILURE
     
     def on_activate(self, state):
@@ -95,7 +94,7 @@ class STTLifecycleNode(LifecycleNode):
                         response_msg.timestamp = self.get_clock().now().to_msg()
                         
                         self.response_publisher.publish(response_msg)
-                        self.get_logger().info(f"Recognized: {text}")
+                        self.get_logger().info(f"Persona: {text}")
 
                         status_msg = Bool()
                         status_msg.data = True
@@ -107,7 +106,6 @@ class STTLifecycleNode(LifecycleNode):
             stream.stop_stream()
             stream.close()
             p.terminate()
-            self.get_logger().info('Speech recognition stopped')
 
 def main(args=None):
     rclpy.init(args=args)
