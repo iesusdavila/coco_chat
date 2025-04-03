@@ -18,22 +18,17 @@ class TTSLifecycleNode(LifecycleNode):
     def __init__(self):
         super().__init__('tts_lifecycle_node')
         
-        # Configure model paths
         pkg_share_dir = get_package_share_directory('buddy_chat')
         self.tts_model_path = os.path.join(pkg_share_dir, 'models', 'TTS', 'es_MX-claude-high.onnx')
         self.tts_config_path = os.path.join(pkg_share_dir, 'models', 'TTS', 'es_MX-claude-high.onnx.json')
         
-        # TTS Voice
         self.voice = None
         
-        # STT Status Publisher
         self.stt_status_publisher = self.create_publisher(Bool, '/stt_terminado', 10)
 
-        # Subscribers
         self.create_subscription(PersonResponse, '/response_person', self.process_input_person, 10)
         self.text_person = None
         
-        # Action Client for LLAMA response
         self._action_client = None
     
     def process_input_person(self, msg):
@@ -44,7 +39,6 @@ class TTSLifecycleNode(LifecycleNode):
         self.get_logger().info('Configuring TTS Node')
         
         try:
-            # Load Piper Voice model
             self.voice = PiperVoice.load(
                 model_path=self.tts_model_path,
                 config_path=self.tts_config_path,
@@ -58,10 +52,8 @@ class TTSLifecycleNode(LifecycleNode):
     def on_activate(self, state):
         self.get_logger().info('Activating TTS Node')
         
-        # Setup action client to listen for LLAMA responses
         self._action_client = ActionClient(self, ProcessResponse, '/response_llama')
         
-        # Start listening for LLAMA responses
         goal_thread = threading.Thread(target=self._listen_and_speak)
         goal_thread.start()
         
@@ -76,7 +68,6 @@ class TTSLifecycleNode(LifecycleNode):
         if not self._action_client.wait_for_server(timeout_sec=1.0):
             return
         
-        # Send goal to get response
         goal_msg = ProcessResponse.Goal()
         if self.text_person is not None:
             goal_msg.input_text = self.text_person
@@ -85,7 +76,6 @@ class TTSLifecycleNode(LifecycleNode):
 
         self._action_client.wait_for_server()
         
-        # Send goal and wait for result
         future = self._action_client.send_goal_async(
             goal_msg,
             feedback_callback=self._feedback_callback
@@ -93,7 +83,6 @@ class TTSLifecycleNode(LifecycleNode):
 
         self.get_logger().info('Waiting for goal to complete')
         
-        # Wait for goal to complete
         rclpy.spin_until_future_complete(self, future)
     
     def _feedback_callback(self, feedback_msg):
@@ -108,11 +97,9 @@ class TTSLifecycleNode(LifecycleNode):
                     wav_file.setframerate(self.voice.config.sample_rate)
                     self.voice.synthesize(chunk, wav_file)
                 
-                # Play audio
                 playsound(fp.name)
         
         if feedback_msg.feedback.progress == 1.0:
-            # Publish STT status
             stt_status_msg = Bool()
             stt_status_msg.data = False
             self.stt_status_publisher.publish(stt_status_msg)
