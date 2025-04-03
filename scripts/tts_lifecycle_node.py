@@ -13,7 +13,6 @@ import os
 import threading
 import tempfile
 import wave
-import queue
 
 class TTSLifecycleNode(LifecycleNode):
     def __init__(self):
@@ -62,8 +61,6 @@ class TTSLifecycleNode(LifecycleNode):
         # Setup action client to listen for LLAMA responses
         self._action_client = ActionClient(self, ProcessResponse, '/response_llama')
         
-        self.audio_queue = queue.Queue()
-
         # Start listening for LLAMA responses
         goal_thread = threading.Thread(target=self._listen_and_speak)
         goal_thread.start()
