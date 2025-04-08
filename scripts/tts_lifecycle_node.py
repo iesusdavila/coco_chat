@@ -25,6 +25,7 @@ class TTSLifecycleNode(LifecycleNode):
         self.voice = None
         
         self.stt_status_publisher = self.create_publisher(Bool, '/stt_terminado', 10)
+        self.audio_playing_publisher = self.create_publisher(Bool, '/audio_playing', 10)
 
         self.create_subscription(PersonResponse, '/response_person', self.process_input_person, 10)
         self.text_person = None
@@ -90,6 +91,11 @@ class TTSLifecycleNode(LifecycleNode):
         chunk = feedback_msg.feedback.current_chunk
         
         if chunk and chunk != "[END_FINAL]":
+
+            audio_status_msg = Bool()
+            audio_status_msg.data = True
+            self.audio_playing_publisher.publish(audio_status_msg)
+
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as fp:
                 with wave.open(fp.name, 'wb') as wav_file:
                     wav_file.setnchannels(1)
@@ -98,6 +104,10 @@ class TTSLifecycleNode(LifecycleNode):
                     self.voice.synthesize(chunk, wav_file)
                 
                 playsound(fp.name)
+
+                audio_status_msg = Bool()
+                audio_status_msg.data = False
+                self.audio_playing_publisher.publish(audio_status_msg)
         
         if feedback_msg.feedback.progress == 1.0:
             stt_status_msg = Bool()
