@@ -4,7 +4,7 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 
-namespace buddy_chat {
+namespace coco_chat {
 
 std::vector<std::string> TextProcessor::clean_text(const std::string& text) {
     std::locale::global(std::locale(""));
@@ -44,7 +44,7 @@ std::vector<std::string> TextProcessor::clean_text(const std::string& text) {
 LLMLifecycleNode::LLMLifecycleNode(const rclcpp::NodeOptions& options)
     : LifecycleNode("llm_lifecycle_node", options) {
     
-    std::string pkg_share_dir = ament_index_cpp::get_package_share_directory("buddy_chat");
+    std::string pkg_share_dir = ament_index_cpp::get_package_share_directory("coco_chat");
     model_path_ = pkg_share_dir + "/models/LLM/models--ggml-org--Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF/snapshots/0aba27dd2f1c7f4941a94a5c59d80e0a256f9ff8/meta-llama-3.1-8b-instruct-q4_0.gguf";
     
     RCLCPP_INFO(get_logger(), "Model path: %s", model_path_.c_str());
@@ -96,7 +96,7 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         llama_sampler_chain_add(sampler_, llama_sampler_init_temp(0.7f)); 
         llama_sampler_chain_add(sampler_, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
                         
-        action_server_ = rclcpp_action::create_server<buddy_interfaces::action::ProcessResponse>(
+        action_server_ = rclcpp_action::create_server<coco_interfaces::action::ProcessResponse>(
             this,
             "/response_llama",
             std::bind(&LLMLifecycleNode::handle_goal, this, _1, _2),
@@ -126,7 +126,7 @@ LLMLifecycleNode::on_deactivate(const rclcpp_lifecycle::State& state) {
 
 rclcpp_action::GoalResponse LLMLifecycleNode::handle_goal(
     const rclcpp_action::GoalUUID& uuid,
-    std::shared_ptr<const buddy_interfaces::action::ProcessResponse::Goal> goal)
+    std::shared_ptr<const coco_interfaces::action::ProcessResponse::Goal> goal)
 {
     (void)uuid;
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -148,8 +148,8 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
 {
     std::lock_guard<std::mutex> lock(llama_mutex_); 
     
-    auto feedback = std::make_shared<buddy_interfaces::action::ProcessResponse::Feedback>();
-    auto result = std::make_shared<buddy_interfaces::action::ProcessResponse::Result>();
+    auto feedback = std::make_shared<coco_interfaces::action::ProcessResponse::Feedback>();
+    auto result = std::make_shared<coco_interfaces::action::ProcessResponse::Result>();
 
     if (!model_ || !ctx_ || !sampler_) {
         result->completed = false;
@@ -158,7 +158,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     }
     
     const std::string system_prompt = 
-        "Eres Leo, un asistente virtual amigable para niños que se encuentran en hospitales "
+        "Eres Coco, un asistente virtual amigable para niños que se encuentran en hospitales "
         "y tienen entre 7 a 12 años.";
     
     conversation_history_.clear();
@@ -297,7 +297,7 @@ int main(int argc, char * argv[]) {
     rclcpp::init(argc, argv);
     
     rclcpp::executors::SingleThreadedExecutor executor;
-    auto node = std::make_shared<buddy_chat::LLMLifecycleNode>();
+    auto node = std::make_shared<coco_chat::LLMLifecycleNode>();
     
     executor.add_node(node->get_node_base_interface());
     executor.spin();

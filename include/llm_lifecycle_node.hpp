@@ -13,9 +13,9 @@
 #include <mutex>
 
 #include "llama.h"
-#include "buddy_interfaces/action/process_response.hpp"
+#include "coco_interfaces/action/process_response.hpp"
 
-namespace buddy_chat {
+namespace coco_chat {
 
 class TextProcessor {
 public:
@@ -24,13 +24,13 @@ public:
 
 class LLMLifecycleNode : public rclcpp_lifecycle::LifecycleNode {
 public:
-    using GoalHandleProcessResponse = rclcpp_action::ServerGoalHandle<buddy_interfaces::action::ProcessResponse>;
+    using GoalHandleProcessResponse = rclcpp_action::ServerGoalHandle<coco_interfaces::action::ProcessResponse>;
 
     explicit LLMLifecycleNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
     ~LLMLifecycleNode();
 
 private:
-    rclcpp_action::Server<buddy_interfaces::action::ProcessResponse>::SharedPtr action_server_;
+    rclcpp_action::Server<coco_interfaces::action::ProcessResponse>::SharedPtr action_server_;
     std::mutex llama_mutex_;
     
     std::string model_path_;
@@ -56,7 +56,7 @@ private:
 
     rclcpp_action::GoalResponse handle_goal(
         const rclcpp_action::GoalUUID& uuid,
-        std::shared_ptr<const buddy_interfaces::action::ProcessResponse::Goal> goal);
+        std::shared_ptr<const coco_interfaces::action::ProcessResponse::Goal> goal);
 
     rclcpp_action::CancelResponse handle_cancel(
         const std::shared_ptr<GoalHandleProcessResponse> goal_handle);
@@ -66,6 +66,6 @@ private:
     void execute_response_generation(const std::shared_ptr<GoalHandleProcessResponse> goal_handle);
 };
 
-} // namespace buddy_chat
+} // namespace coco_chat
 
 #endif // LLM_LIFECYCLE_NODE_HPP
