@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn 
 from std_msgs.msg import Bool
-from buddy_interfaces.msg import PersonResponse
+from coco_interfaces.msg import PersonResponse
 from ament_index_python.packages import get_package_share_directory
 from vosk import Model, KaldiRecognizer, SetLogLevel
 import pyaudio
@@ -34,7 +34,7 @@ class STTLifecycleNode(LifecycleNode):
     def __init__(self):
         super().__init__('stt_lifecycle_node')
         
-        pkg_share_dir = get_package_share_directory('buddy_chat')
+        pkg_share_dir = get_package_share_directory('coco_chat')
         self.vosk_model_path = os.path.join(pkg_share_dir, 'models', 'STT', 'vosk-model-small-es-0.42')
         
         self.response_publisher = self.create_publisher(PersonResponse, '/response_person', 10)

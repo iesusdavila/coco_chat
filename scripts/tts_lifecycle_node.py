@@ -4,8 +4,8 @@ import rclpy
 from rclpy.action import ActionClient
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn 
 from std_msgs.msg import Bool
-from buddy_interfaces.msg import PersonResponse
-from buddy_interfaces.action import ProcessResponse
+from coco_interfaces.msg import PersonResponse
+from coco_interfaces.action import ProcessResponse
 from ament_index_python.packages import get_package_share_directory
 from piper import PiperVoice
 from playsound import playsound
@@ -18,7 +18,7 @@ class TTSLifecycleNode(LifecycleNode):
     def __init__(self):
         super().__init__('tts_lifecycle_node')
         
-        pkg_share_dir = get_package_share_directory('buddy_chat')
+        pkg_share_dir = get_package_share_directory('coco_chat')
         self.tts_model_path = os.path.join(pkg_share_dir, 'models', 'TTS', 'es_MX-claude-high.onnx')
         self.tts_config_path = os.path.join(pkg_share_dir, 'models', 'TTS', 'es_MX-claude-high.onnx.json')
         
