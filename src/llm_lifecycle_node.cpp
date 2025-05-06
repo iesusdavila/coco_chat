@@ -81,7 +81,7 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         vocab_ = llama_model_get_vocab(model_);
         
         llama_context_params ctx_params = llama_context_default_params();
-        ctx_params.n_ctx = 2048;  
+        ctx_params.n_ctx = 4096;
         ctx_params.n_batch = 2048;
         ctx_params.n_threads = 4;
         
@@ -93,7 +93,9 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         
         sampler_ = llama_sampler_chain_init(llama_sampler_chain_default_params());
         llama_sampler_chain_add(sampler_, llama_sampler_init_min_p(0.05f, 1));
-        llama_sampler_chain_add(sampler_, llama_sampler_init_temp(0.7f)); 
+        llama_sampler_chain_add(sampler_, llama_sampler_init_top_k(40));
+        llama_sampler_chain_add(sampler_, llama_sampler_init_top_p(0.9f, 1));
+        llama_sampler_chain_add(sampler_, llama_sampler_init_temp(0.5f)); 
         llama_sampler_chain_add(sampler_, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
                         
         action_server_ = rclcpp_action::create_server<coco_interfaces::action::ProcessResponse>(
