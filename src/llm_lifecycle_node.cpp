@@ -97,6 +97,13 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         llama_sampler_chain_add(sampler_, llama_sampler_init_top_p(0.9f, 1));
         llama_sampler_chain_add(sampler_, llama_sampler_init_temp(0.5f)); 
         llama_sampler_chain_add(sampler_, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
+
+        const std::string system_prompt = 
+            "Eres Coco, un asistente virtual amigable para niños que se encuentran en hospitales "
+            "y tienen entre 7 a 12 años.";
+        
+        conversation_history_.clear();
+        conversation_history_.push_back({"system", system_prompt});
                         
         action_server_ = rclcpp_action::create_server<coco_interfaces::action::ProcessResponse>(
             this,
@@ -158,13 +165,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         goal_handle->abort(result);
         return;
     }
-    
-    const std::string system_prompt = 
-        "Eres Coco, un asistente virtual amigable para niños que se encuentran en hospitales "
-        "y tienen entre 7 a 12 años.";
-    
-    conversation_history_.clear();
-    conversation_history_.push_back({"system", system_prompt});
+
     conversation_history_.push_back({"user", goal_handle->get_goal()->input_text});
     
     const char* tmpl = llama_model_chat_template(model_);
