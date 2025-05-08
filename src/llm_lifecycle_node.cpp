@@ -192,6 +192,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     RCLCPP_INFO(get_logger(), "Mensaje de entrada: %s", goal_handle->get_goal()->input_text.c_str());
     
     const int n_prompt_tokens = -llama_tokenize(vocab_, prompt.c_str(), prompt.size(), NULL, 0, true, true);
+    manage_context(n_prompt_tokens);
     std::vector<llama_token> prompt_tokens(n_prompt_tokens);
     if (llama_tokenize(vocab_, prompt.c_str(), prompt.size(), prompt_tokens.data(), prompt_tokens.size(), llama_get_kv_cache_used_cells(ctx_) == 0, true) < 0) {
         RCLCPP_ERROR(get_logger(), "Failed to tokenize the prompt");
@@ -291,6 +292,23 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     result->full_response = full_response;
     result->completed = true;
     goal_handle->succeed(result);
+}
+
+bool LLMLifecycleNode::manage_context(int tokens_to_add) {
+    int n_ctx = llama_n_ctx(ctx_);
+    int n_ctx_used = llama_get_kv_cache_used_cells(ctx_);
+    
+    if ((n_ctx_used + tokens_to_add) >= (n_ctx * CONTEXT_USAGE_THRESHOLD_)) {
+        RCLCPP_INFO(get_logger(), "Contexto casi (%d/%d tokens usados). Regenerando contexto...", n_ctx_used, n_ctx);
+        RCLCPP_INFO(get_logger(), "Tamaño del contexto a usar: %d/%d", (n_ctx_used + tokens_to_add), n_ctx);
+        
+        llama_kv_cache_clear(ctx_);
+        llama_kv_cache_seq_rm(ctx_, -1, -1, -1);
+        
+        return true;
+    }
+    
+    return false;
 }
 
 }

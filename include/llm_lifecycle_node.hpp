@@ -45,6 +45,9 @@ private:
     };
     std::vector<ChatMessage> conversation_history_;
 
+    const float CONTEXT_USAGE_THRESHOLD_ = 0.07f; 
+    bool manage_context(int tokens_to_add);
+
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
     on_configure(const rclcpp_lifecycle::State& state);
 
