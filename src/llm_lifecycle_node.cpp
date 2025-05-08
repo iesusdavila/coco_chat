@@ -160,7 +160,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     }
     
     conversation_history_.clear();
-    RCLCPP_INFO(get_logger(), "Prompt base: %s", system_prompt_base_.c_str());
     conversation_history_.push_back({"system", system_prompt_base_});
     conversation_history_for_summary_.push_back({"system", system_prompt_base_});
 
@@ -189,7 +188,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     }
     
     std::string prompt(formatted.begin(), formatted.begin() + len);
-    RCLCPP_INFO(get_logger(), "Mensaje de entrada: %s", goal_handle->get_goal()->input_text.c_str());
     
     const int n_prompt_tokens = -llama_tokenize(vocab_, prompt.c_str(), prompt.size(), NULL, 0, true, true);
     manage_context(n_prompt_tokens);
@@ -210,8 +208,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     int max_tokens = static_cast<int>(CONFIGURATIONS_["max_tokens_chat"]); 
     int token_count = 0;
     
-    RCLCPP_INFO(get_logger(), "Contexto => %d/%d tokens usados.", (llama_get_kv_cache_used_cells(ctx_)+n_prompt_tokens), llama_n_ctx(ctx_));
-
     RCLCPP_INFO(get_logger(), "Modelo: ");
     while (token_count < max_tokens) {
         int n_ctx = llama_n_ctx(ctx_);
@@ -302,10 +298,7 @@ bool LLMLifecycleNode::manage_context(int tokens_to_add) {
     int n_ctx = llama_n_ctx(ctx_);
     int n_ctx_used = llama_get_kv_cache_used_cells(ctx_);
     
-    if ((n_ctx_used + tokens_to_add) >= (n_ctx * CONFIGURATIONS_["context_usage_threshold"])) {
-        RCLCPP_INFO(get_logger(), "MCONTEXT Contexto casi lleno (%d/%d tokens usados). Regenerando contexto...", n_ctx_used, n_ctx);
-        RCLCPP_INFO(get_logger(), "MCONTEXT Tamaño del contexto a usar: %d/%d", (n_ctx_used + tokens_to_add), n_ctx);
-        
+    if ((n_ctx_used + tokens_to_add) >= (n_ctx * CONFIGURATIONS_["context_usage_threshold"])) {        
         std::string conversation_summary_ = generate_conversation_summary();
         
         llama_kv_cache_clear(ctx_);
