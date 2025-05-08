@@ -49,6 +49,14 @@ private:
     std::string system_prompt_base_ = "Eres Coco, un asistente virtual amigable para niños que se encuentran en hospitales "
                                     "y tienen entre 7 a 12 años.";
 
+    std::string summary_prompt_ = "Basado en la conversación anterior, genera un resumen corto y conciso dividido por puntos con la siguiente información:\n"
+                                "- Datos personales mencionados\n"
+                                "- Temas tratados\n"
+                                "- Sentimiento de la persona durante la conversación\n"
+                                "- Último tema que estaban conversando\n"
+                                "- Sobre qué se quedaron hablando\n\n"
+                                "Mantén este resumen breve y directo al punto, en caso de que falte información de algunas de esas menciona que no hay info."; 
+
     const float CONTEXT_USAGE_THRESHOLD_ = 0.9f; 
 
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn

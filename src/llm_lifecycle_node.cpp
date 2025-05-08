@@ -320,18 +320,9 @@ bool LLMLifecycleNode::manage_context(int tokens_to_add) {
 }
 
 std::string LLMLifecycleNode::generate_conversation_summary() {    
-    RCLCPP_INFO(get_logger(), "Generando resumen de la conversación...");
+    RCLCPP_INFO(get_logger(), "Generando resumen de la conversación...");   
     
-    std::string summary_prompt = 
-        "Basado en la conversación anterior, genera un resumen corto y conciso dividido por puntos con la siguiente información:\n"
-        "- Datos personales mencionados\n"
-        "- Temas tratados\n"
-        "- Sentimiento de la persona durante la conversación\n"
-        "- Último tema que estaban conversando\n"
-        "- Sobre qué se quedaron hablando\n\n"
-        "Mantén este resumen breve y directo al punto, en caso de que falte información de algunas de esas menciona que no hay info.";    
-    
-    conversation_history_for_summary_.push_back({"user", summary_prompt});
+    conversation_history_for_summary_.push_back({"user", summary_prompt_});
     
     const char* tmpl = llama_model_chat_template(model_);
     std::vector<llama_chat_message> llama_messages;
