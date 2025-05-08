@@ -70,7 +70,7 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         ggml_backend_load_all();
         
         llama_model_params model_params = llama_model_default_params();
-        model_params.n_gpu_layers = 12;  
+        model_params.n_gpu_layers = static_cast<int>(CONFIGURATIONS_["n_gpu_layers"]);
         
         model_ = llama_model_load_from_file(model_path_.c_str(), model_params);
         if (!model_) {
@@ -81,9 +81,9 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         vocab_ = llama_model_get_vocab(model_);
         
         llama_context_params ctx_params = llama_context_default_params();
-        ctx_params.n_ctx = 4096;
-        ctx_params.n_batch = 2048;
-        ctx_params.n_threads = 4;
+        ctx_params.n_ctx = static_cast<int>(CONFIGURATIONS_["n_ctx"]);
+        ctx_params.n_batch = static_cast<int>(CONFIGURATIONS_["n_batch"]);
+        ctx_params.n_threads = static_cast<int>(CONFIGURATIONS_["n_threads"]);
         
         ctx_ = llama_init_from_model(model_, ctx_params);
         if (!ctx_) {
@@ -92,10 +92,10 @@ LLMLifecycleNode::on_configure(const rclcpp_lifecycle::State& state) {
         }
         
         sampler_ = llama_sampler_chain_init(llama_sampler_chain_default_params());
-        llama_sampler_chain_add(sampler_, llama_sampler_init_min_p(0.05f, 1));
-        llama_sampler_chain_add(sampler_, llama_sampler_init_top_k(40));
-        llama_sampler_chain_add(sampler_, llama_sampler_init_top_p(0.9f, 1));
-        llama_sampler_chain_add(sampler_, llama_sampler_init_temp(0.5f)); 
+        llama_sampler_chain_add(sampler_, llama_sampler_init_min_p(CONFIGURATIONS_["min_p"], 1));
+        llama_sampler_chain_add(sampler_, llama_sampler_init_top_k(static_cast<int>(CONFIGURATIONS_["top_k"])));
+        llama_sampler_chain_add(sampler_, llama_sampler_init_top_p(CONFIGURATIONS_["top_p"], 1));
+        llama_sampler_chain_add(sampler_, llama_sampler_init_temp(CONFIGURATIONS_["temp"])); 
         llama_sampler_chain_add(sampler_, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
                         
         action_server_ = rclcpp_action::create_server<coco_interfaces::action::ProcessResponse>(
@@ -207,7 +207,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     std::string full_response;
     
     llama_token new_token_id;
-    int max_tokens = 300; 
+    int max_tokens = static_cast<int>(CONFIGURATIONS_["max_tokens_chat"]); 
     int token_count = 0;
     
     RCLCPP_INFO(get_logger(), "Contexto => %d/%d tokens usados.", (llama_get_kv_cache_used_cells(ctx_)+n_prompt_tokens), llama_n_ctx(ctx_));
@@ -240,7 +240,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
             break;
         }
         
-        char token_buf[256];
+        char token_buf[static_cast<int>(CONFIGURATIONS_["token_buffer_size"])];
         int n = llama_token_to_piece(vocab_, new_token_id, token_buf, sizeof(token_buf), 0, true);
         if (n < 0) {
             RCLCPP_ERROR(get_logger(), "Failed to convert token to piece");
@@ -302,7 +302,7 @@ bool LLMLifecycleNode::manage_context(int tokens_to_add) {
     int n_ctx = llama_n_ctx(ctx_);
     int n_ctx_used = llama_get_kv_cache_used_cells(ctx_);
     
-    if ((n_ctx_used + tokens_to_add) >= (n_ctx * CONTEXT_USAGE_THRESHOLD_)) {
+    if ((n_ctx_used + tokens_to_add) >= (n_ctx * CONFIGURATIONS_["context_usage_threshold"])) {
         RCLCPP_INFO(get_logger(), "MCONTEXT Contexto casi lleno (%d/%d tokens usados). Regenerando contexto...", n_ctx_used, n_ctx);
         RCLCPP_INFO(get_logger(), "MCONTEXT Tamaño del contexto a usar: %d/%d", (n_ctx_used + tokens_to_add), n_ctx);
         
@@ -357,7 +357,7 @@ std::string LLMLifecycleNode::generate_conversation_summary() {
     std::string summary;
     
     llama_token new_token_id;
-    int max_tokens = 200; 
+    int max_tokens = static_cast<int>(CONFIGURATIONS_["max_tokens_summary"]);
     int token_count = 0;
     
     while (token_count < max_tokens) {
@@ -372,7 +372,7 @@ std::string LLMLifecycleNode::generate_conversation_summary() {
             break;
         }
         
-        char token_buf[256];
+        char token_buf[static_cast<int>(CONFIGURATIONS_["token_buffer_size"])];
         int n = llama_token_to_piece(vocab_, new_token_id, token_buf, sizeof(token_buf), 0, true);
         if (n < 0) {
             RCLCPP_INFO(get_logger(), "Failed to convert token to piece in summary");

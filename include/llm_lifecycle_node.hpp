@@ -11,6 +11,7 @@
 #include <regex>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <mutex>
+#include <unordered_map>
 
 #include "llama.h"
 #include "coco_interfaces/action/process_response.hpp"
@@ -38,6 +39,21 @@ private:
     llama_context* ctx_ = nullptr;
     llama_sampler* sampler_ = nullptr;
     const llama_vocab* vocab_ = nullptr;
+
+    std::unordered_map<std::string, float> CONFIGURATIONS_ = {
+        {"n_gpu_layers", 12.0},
+        {"n_ctx", 4096.0},
+        {"n_batch", 2048.0},
+        {"n_threads", 4.0},
+        {"min_p", 0.05},
+        {"top_k", 40.0},
+        {"top_p", 0.9},
+        {"temp", 0.5},
+        {"max_tokens_chat",300.0},
+        {"max_tokens_summary", 200.0},
+        {"token_buffer_size", 256.0},
+        {"context_usage_threshold", 0.9}
+    };
     
     struct ChatMessage {
         std::string role;
@@ -56,8 +72,6 @@ private:
                                 "- Último tema que estaban conversando\n"
                                 "- Sobre qué se quedaron hablando\n\n"
                                 "Mantén este resumen breve y directo al punto, en caso de que falte información de algunas de esas menciona que no hay info."; 
-
-    const float CONTEXT_USAGE_THRESHOLD_ = 0.9f; 
 
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
     on_configure(const rclcpp_lifecycle::State& state);
