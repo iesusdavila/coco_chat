@@ -44,9 +44,12 @@ private:
         std::string content;
     };
     std::vector<ChatMessage> conversation_history_;
+    std::vector<ChatMessage> conversation_history_for_summary_;
 
-    const float CONTEXT_USAGE_THRESHOLD_ = 0.07f; 
-    bool manage_context(int tokens_to_add);
+    std::string system_prompt_base_ = "Eres Coco, un asistente virtual amigable para niños que se encuentran en hospitales "
+                                    "y tienen entre 7 a 12 años.";
+
+    const float CONTEXT_USAGE_THRESHOLD_ = 0.9f; 
 
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
     on_configure(const rclcpp_lifecycle::State& state);
@@ -67,6 +70,10 @@ private:
     void handle_accepted(const std::shared_ptr<GoalHandleProcessResponse> goal_handle);
 
     void execute_response_generation(const std::shared_ptr<GoalHandleProcessResponse> goal_handle);
+
+    bool manage_context(int tokens_to_add);
+
+    std::string generate_conversation_summary();
 };
 
 } // namespace coco_chat
