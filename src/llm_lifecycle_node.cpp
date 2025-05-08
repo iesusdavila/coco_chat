@@ -158,14 +158,14 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         goal_handle->abort(result);
         return;
     }
-
-    const std::string system_prompt = 
-        "Eres Coco, un asistente virtual amigable para niños que se encuentran en hospitales "
-        "y tienen entre 7 a 12 años.";
     
     conversation_history_.clear();
-    conversation_history_.push_back({"system", system_prompt});
+    RCLCPP_INFO(get_logger(), "Prompt base: %s", system_prompt_base_.c_str());
+    conversation_history_.push_back({"system", system_prompt_base_});
+    conversation_history_for_summary_.push_back({"system", system_prompt_base_});
+
     conversation_history_.push_back({"user", goal_handle->get_goal()->input_text});
+    conversation_history_for_summary_.push_back({"user", goal_handle->get_goal()->input_text});
     
     const char* tmpl = llama_model_chat_template(model_);
     std::vector<llama_chat_message> llama_messages;
@@ -210,10 +210,13 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     int max_tokens = 300; 
     int token_count = 0;
     
+    RCLCPP_INFO(get_logger(), "Contexto => %d/%d tokens usados.", (llama_get_kv_cache_used_cells(ctx_)+n_prompt_tokens), llama_n_ctx(ctx_));
+
     RCLCPP_INFO(get_logger(), "Modelo: ");
     while (token_count < max_tokens) {
         int n_ctx = llama_n_ctx(ctx_);
         int n_ctx_used = llama_get_kv_cache_used_cells(ctx_);
+
         if (n_ctx_used + batch.n_tokens > n_ctx) {
             RCLCPP_ERROR(get_logger(), "Context size exceeded");
             break;
@@ -288,6 +291,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     goal_handle->publish_feedback(feedback);
     
     conversation_history_.push_back({"assistant", full_response});
+    conversation_history_for_summary_.push_back({"assistant", full_response});
     
     result->full_response = full_response;
     result->completed = true;
@@ -299,16 +303,102 @@ bool LLMLifecycleNode::manage_context(int tokens_to_add) {
     int n_ctx_used = llama_get_kv_cache_used_cells(ctx_);
     
     if ((n_ctx_used + tokens_to_add) >= (n_ctx * CONTEXT_USAGE_THRESHOLD_)) {
-        RCLCPP_INFO(get_logger(), "Contexto casi (%d/%d tokens usados). Regenerando contexto...", n_ctx_used, n_ctx);
-        RCLCPP_INFO(get_logger(), "Tamaño del contexto a usar: %d/%d", (n_ctx_used + tokens_to_add), n_ctx);
+        RCLCPP_INFO(get_logger(), "MCONTEXT Contexto casi lleno (%d/%d tokens usados). Regenerando contexto...", n_ctx_used, n_ctx);
+        RCLCPP_INFO(get_logger(), "MCONTEXT Tamaño del contexto a usar: %d/%d", (n_ctx_used + tokens_to_add), n_ctx);
+        
+        std::string conversation_summary_ = generate_conversation_summary();
         
         llama_kv_cache_clear(ctx_);
         llama_kv_cache_seq_rm(ctx_, -1, -1, -1);
+
+        system_prompt_base_ = system_prompt_base_ + "\n\nResumen de la conversación hasta ahora:\n" + conversation_summary_;
         
         return true;
     }
     
     return false;
+}
+
+std::string LLMLifecycleNode::generate_conversation_summary() {    
+    RCLCPP_INFO(get_logger(), "Generando resumen de la conversación...");
+    
+    std::string summary_prompt = 
+        "Basado en la conversación anterior, genera un resumen corto y conciso dividido por puntos con la siguiente información:\n"
+        "- Datos personales mencionados\n"
+        "- Temas tratados\n"
+        "- Sentimiento de la persona durante la conversación\n"
+        "- Último tema que estaban conversando\n"
+        "- Sobre qué se quedaron hablando\n\n"
+        "Mantén este resumen breve y directo al punto, en caso de que falte información de algunas de esas menciona que no hay info.";    
+    
+    conversation_history_for_summary_.push_back({"user", summary_prompt});
+    
+    const char* tmpl = llama_model_chat_template(model_);
+    std::vector<llama_chat_message> llama_messages;
+    
+    for (const auto& msg : conversation_history_for_summary_) {
+        llama_chat_message llm_msg;
+        llm_msg.role = msg.role.c_str();
+        llm_msg.content = msg.content.c_str();
+        llama_messages.push_back(llm_msg);
+    }
+    
+    std::vector<char> formatted(llama_n_ctx(ctx_));
+    int len = llama_chat_apply_template(tmpl, llama_messages.data(), llama_messages.size(), true, formatted.data(), formatted.size());
+    
+    if (len < 0) {
+        RCLCPP_INFO(get_logger(), "Failed to apply the chat template for summary %d", len);
+        return "";
+    }
+    
+    std::string prompt(formatted.begin(), formatted.begin() + len);
+    
+    llama_kv_cache_clear(ctx_);
+    
+    const int n_prompt_tokens = -llama_tokenize(vocab_, prompt.c_str(), prompt.size(), NULL, 0, true, true);
+    std::vector<llama_token> prompt_tokens(n_prompt_tokens);
+    if (llama_tokenize(vocab_, prompt.c_str(), prompt.size(), prompt_tokens.data(), prompt_tokens.size(), true, true) < 0) {
+        RCLCPP_INFO(get_logger(), "Failed to tokenize the summary prompt");
+        return "";
+    }
+    
+    llama_batch batch = llama_batch_get_one(prompt_tokens.data(), prompt_tokens.size());
+    std::string summary;
+    
+    llama_token new_token_id;
+    int max_tokens = 200; 
+    int token_count = 0;
+    
+    while (token_count < max_tokens) {
+        if (llama_decode(ctx_, batch)) {
+            RCLCPP_INFO(get_logger(), "Failed to decode for summary");
+            break;
+        }
+        
+        new_token_id = llama_sampler_sample(sampler_, ctx_, -1);
+        
+        if (llama_vocab_is_eog(vocab_, new_token_id)) {
+            break;
+        }
+        
+        char token_buf[256];
+        int n = llama_token_to_piece(vocab_, new_token_id, token_buf, sizeof(token_buf), 0, true);
+        if (n < 0) {
+            RCLCPP_INFO(get_logger(), "Failed to convert token to piece in summary");
+            break;
+        }
+        
+        std::string piece(token_buf, n);
+        summary += piece;
+        
+        batch = llama_batch_get_one(&new_token_id, 1);
+        token_count++;
+    }
+
+    conversation_history_for_summary_.pop_back();
+    
+    RCLCPP_INFO(get_logger(), "Resumen generado: %s", summary.c_str());
+    return summary;
 }
 
 }
