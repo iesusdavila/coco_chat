@@ -45,7 +45,7 @@ LLMLifecycleNode::LLMLifecycleNode(const rclcpp::NodeOptions& options)
     : LifecycleNode("llm_lifecycle_node", options) {
     
     std::string pkg_share_dir = ament_index_cpp::get_package_share_directory("coco_chat");
-    model_path_ = pkg_share_dir + "/models/LLM/models--ggml-org--Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF/snapshots/0aba27dd2f1c7f4941a94a5c59d80e0a256f9ff8/meta-llama-3.1-8b-instruct-q4_0.gguf";
+    model_path_ = pkg_share_dir + "/models/LLM/models--MaziyarPanahi--Llama-3.2-1B-Instruct-GGUF/snapshots/b64ae94264258a3d7516a34a8c54928d32b19869/Llama-3.2-1B-Instruct.Q4_K_M.gguf";
     
     RCLCPP_INFO(get_logger(), "Model path: %s", model_path_.c_str());
 }
