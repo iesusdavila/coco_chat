@@ -166,7 +166,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     conversation_history_.push_back({"user", goal_handle->get_goal()->input_text});
     conversation_history_for_summary_.push_back({"user", goal_handle->get_goal()->input_text});
     
-    const char* tmpl = llama_model_chat_template(model_);
+    const char* tmpl = llama_model_chat_template(model_, NULL);
     std::vector<llama_chat_message> llama_messages;
     
     for (const auto& msg : conversation_history_) {
@@ -192,7 +192,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     const int n_prompt_tokens = -llama_tokenize(vocab_, prompt.c_str(), prompt.size(), NULL, 0, true, true);
     manage_context(n_prompt_tokens);
     std::vector<llama_token> prompt_tokens(n_prompt_tokens);
-    if (llama_tokenize(vocab_, prompt.c_str(), prompt.size(), prompt_tokens.data(), prompt_tokens.size(), llama_get_kv_cache_used_cells(ctx_) == 0, true) < 0) {
+    if (llama_tokenize(vocab_, prompt.c_str(), prompt.size(), prompt_tokens.data(), prompt_tokens.size(), llama_kv_self_used_cells(ctx_) == 0, true) < 0) {
         RCLCPP_ERROR(get_logger(), "Failed to tokenize the prompt");
         result->full_response = "Error: failed to tokenize prompt";
         result->completed = false;
@@ -211,7 +211,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     RCLCPP_INFO(get_logger(), "Modelo: ");
     while (token_count < max_tokens) {
         int n_ctx = llama_n_ctx(ctx_);
-        int n_ctx_used = llama_get_kv_cache_used_cells(ctx_);
+        int n_ctx_used = llama_kv_self_used_cells(ctx_);
 
         if (n_ctx_used + batch.n_tokens > n_ctx) {
             RCLCPP_ERROR(get_logger(), "Context size exceeded");
@@ -296,13 +296,13 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
 
 bool LLMLifecycleNode::manage_context(int tokens_to_add) {
     int n_ctx = llama_n_ctx(ctx_);
-    int n_ctx_used = llama_get_kv_cache_used_cells(ctx_);
+    int n_ctx_used = llama_kv_self_used_cells(ctx_);
     
     if ((n_ctx_used + tokens_to_add) >= (n_ctx * CONFIGURATIONS_["context_usage_threshold"])) {        
         std::string conversation_summary_ = generate_conversation_summary();
         
-        llama_kv_cache_clear(ctx_);
-        llama_kv_cache_seq_rm(ctx_, -1, -1, -1);
+        llama_kv_self_clear(ctx_);
+        llama_kv_self_seq_rm(ctx_, -1, -1, -1);
 
         system_prompt_base_ = system_prompt_base_ + "\n\nResumen de la conversación hasta ahora:\n" + conversation_summary_;
         
@@ -317,7 +317,7 @@ std::string LLMLifecycleNode::generate_conversation_summary() {
     
     conversation_history_for_summary_.push_back({"user", summary_prompt_});
     
-    const char* tmpl = llama_model_chat_template(model_);
+    const char* tmpl = llama_model_chat_template(model_, NULL);
     std::vector<llama_chat_message> llama_messages;
     
     for (const auto& msg : conversation_history_for_summary_) {
@@ -337,7 +337,7 @@ std::string LLMLifecycleNode::generate_conversation_summary() {
     
     std::string prompt(formatted.begin(), formatted.begin() + len);
     
-    llama_kv_cache_clear(ctx_);
+    llama_kv_self_clear(ctx_);
     
     const int n_prompt_tokens = -llama_tokenize(vocab_, prompt.c_str(), prompt.size(), NULL, 0, true, true);
     std::vector<llama_token> prompt_tokens(n_prompt_tokens);
