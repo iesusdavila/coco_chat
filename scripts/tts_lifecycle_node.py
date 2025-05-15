@@ -85,29 +85,31 @@ class TTSLifecycleNode(LifecycleNode):
         self.get_logger().info('Waiting for goal to complete')
         
         rclpy.spin_until_future_complete(self, future)
+
+    def _play_audio(self, text_to_speak):
+        audio_status_msg = Bool()
+        audio_status_msg.data = True
+        self.audio_playing_publisher.publish(audio_status_msg)
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as fp:
+            with wave.open(fp.name, 'wb') as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(self.voice.config.sample_rate)
+                self.voice.synthesize(text_to_speak, wav_file)
+            
+            playsound(fp.name)
+
+            audio_status_msg = Bool()
+            audio_status_msg.data = False
+            self.audio_playing_publisher.publish(audio_status_msg)
     
     def _feedback_callback(self, feedback_msg):
         """Process feedback and convert text to speech"""
         chunk = feedback_msg.feedback.current_chunk
         
         if chunk and chunk != "[END_FINAL]":
-
-            audio_status_msg = Bool()
-            audio_status_msg.data = True
-            self.audio_playing_publisher.publish(audio_status_msg)
-
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as fp:
-                with wave.open(fp.name, 'wb') as wav_file:
-                    wav_file.setnchannels(1)
-                    wav_file.setsampwidth(2)
-                    wav_file.setframerate(self.voice.config.sample_rate)
-                    self.voice.synthesize(chunk, wav_file)
-                
-                playsound(fp.name)
-
-                audio_status_msg = Bool()
-                audio_status_msg.data = False
-                self.audio_playing_publisher.publish(audio_status_msg)
+            self._play_audio(chunk)
         
         if feedback_msg.feedback.progress == 1.0:
             stt_status_msg = Bool()
