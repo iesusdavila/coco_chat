@@ -96,7 +96,7 @@ class TTSLifecycleNode(LifecycleNode):
                 wav_file.setnchannels(1)
                 wav_file.setsampwidth(2)
                 wav_file.setframerate(self.voice.config.sample_rate)
-                self.voice.synthesize(text_to_speak, wav_file)
+                self.voice.synthesize(text_to_speak, wav_file, length_scale=0.95, noise_scale=0.5, noise_w=0.8)
             
             playsound(fp.name)
 
