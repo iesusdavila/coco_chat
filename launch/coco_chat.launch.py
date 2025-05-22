@@ -31,7 +31,7 @@ def generate_launch_description():
     control_manager_node = Node(
         name='lifecycle_control_manager',
         package='coco_chat',
-        executable='control_manager_node.py',
+        executable='control_manager_node',
         output='screen'
     )
 
