@@ -69,11 +69,11 @@ class TTSLifecycleNode(LifecycleNode):
         if not self._action_client.wait_for_server(timeout_sec=1.0):
             return
         
+        if self.text_person is None:
+            return
+        
         goal_msg = ProcessResponse.Goal()
-        if self.text_person is not None:
-            goal_msg.input_text = self.text_person
-        else:
-            return 
+        goal_msg.input_text = self.text_person
 
         self._action_client.wait_for_server()
         
@@ -83,7 +83,6 @@ class TTSLifecycleNode(LifecycleNode):
         )
 
         self.get_logger().info('Waiting for goal to complete')
-        
         rclpy.spin_until_future_complete(self, future)
 
     def _play_audio(self, text_to_speak):
@@ -100,7 +99,6 @@ class TTSLifecycleNode(LifecycleNode):
             
             playsound(fp.name)
 
-            audio_status_msg = Bool()
             audio_status_msg.data = False
             self.audio_playing_publisher.publish(audio_status_msg)
     
@@ -110,15 +108,11 @@ class TTSLifecycleNode(LifecycleNode):
         
         if chunk and chunk != "[END_FINAL]":
             self._play_audio(chunk)
-        
+
         if feedback_msg.feedback.progress == 1.0:
             stt_status_msg = Bool()
             stt_status_msg.data = False
             self.stt_status_publisher.publish(stt_status_msg)
-    
-    def result_callback(self, future):
-        """Procesa el resultado final de la acción"""
-        result = future.result()
 
 def main(args=None):
     rclpy.init(args=args)
