@@ -206,7 +206,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     int max_tokens = static_cast<int>(CONFIGURATIONS_["max_tokens_chat"]); 
     int token_count = 0;
     
-    RCLCPP_INFO(get_logger(), "Modelo: ");
+    RCLCPP_INFO(get_logger(), "Model: ");
     while (token_count < max_tokens) {
         int n_ctx = llama_n_ctx(ctx_);
         int n_ctx_used = llama_kv_self_used_cells(ctx_);
@@ -308,7 +308,7 @@ bool LLMLifecycleNode::manage_context(int tokens_to_add) {
 }
 
 std::string LLMLifecycleNode::generate_conversation_summary() {    
-    RCLCPP_INFO(get_logger(), "Generando resumen de la conversación...");   
+    RCLCPP_INFO(get_logger(), "Generating conversation summary...");
     
     conversation_history_for_summary_.push_back({"user", summary_prompt_});
     
@@ -376,7 +376,7 @@ std::string LLMLifecycleNode::generate_conversation_summary() {
 
     conversation_history_for_summary_.pop_back();
     
-    RCLCPP_INFO(get_logger(), "Resumen generado: %s", summary.c_str());
+    RCLCPP_INFO(get_logger(), "Summary: %s", summary.c_str());
     return summary;
 }
 

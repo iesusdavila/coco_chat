@@ -94,7 +94,7 @@ class STTLifecycleNode(LifecycleNode):
                         response_msg.timestamp = self.get_clock().now().to_msg()
                         
                         self.response_publisher.publish(response_msg)
-                        self.get_logger().info(f"Persona: {text}")
+                        self.get_logger().info(f"Person: {text}")
 
                         status_msg = Bool()
                         status_msg.data = True
