@@ -181,7 +181,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     
     if (len < 0 || len > static_cast<int>(formatted.size())) {
         RCLCPP_ERROR(get_logger(), "Failed to apply the chat template");
-        result->full_response = "Error: failed to format chat";
         result->completed = false;
         goal_handle->abort(result);
         return;
@@ -194,7 +193,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     std::vector<llama_token> prompt_tokens(n_prompt_tokens);
     if (llama_tokenize(vocab_, prompt.c_str(), prompt.size(), prompt_tokens.data(), prompt_tokens.size(), llama_kv_self_used_cells(ctx_) == 0, true) < 0) {
         RCLCPP_ERROR(get_logger(), "Failed to tokenize the prompt");
-        result->full_response = "Error: failed to tokenize prompt";
         result->completed = false;
         goal_handle->abort(result);
         return;
@@ -219,7 +217,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         }
         
         if (goal_handle->is_canceling()) {
-            result->full_response = "Proceso cancelado";
             result->completed = false;
             goal_handle->canceled(result);
             return;
@@ -268,7 +265,7 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
             if (!sentence.empty()) {
                 std::string clean_phrase = TextProcessor::clean_text(sentence).front();
                 feedback->current_chunk = clean_phrase;
-                feedback->progress = 0.0;
+                feedback->is_last_chunk = false;
                 std::cout << clean_phrase << std::endl;
                 goal_handle->publish_feedback(feedback);
                 
@@ -283,13 +280,12 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
     }
     
     feedback->current_chunk = "[END_FINAL]";
-    feedback->progress = 1.0;
+    feedback->is_last_chunk = true;
     goal_handle->publish_feedback(feedback);
     
     conversation_history_.push_back({"assistant", full_response});
     conversation_history_for_summary_.push_back({"assistant", full_response});
     
-    result->full_response = full_response;
     result->completed = true;
     goal_handle->succeed(result);
 }

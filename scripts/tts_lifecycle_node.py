@@ -109,7 +109,7 @@ class TTSLifecycleNode(LifecycleNode):
         if chunk and chunk != "[END_FINAL]":
             self._play_audio(chunk)
 
-        if feedback_msg.feedback.progress == 1.0:
+        if feedback_msg.feedback.is_last_chunk:
             stt_status_msg = Bool()
             stt_status_msg.data = False
             self.stt_status_publisher.publish(stt_status_msg)
