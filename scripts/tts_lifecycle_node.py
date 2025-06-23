@@ -105,11 +105,12 @@ class TTSLifecycleNode(LifecycleNode):
     def _feedback_callback(self, feedback_msg):
         """Process feedback and convert text to speech"""
         chunk = feedback_msg.feedback.current_chunk
+        is_last_chunk = feedback_msg.feedback.is_last_chunk
         
-        if chunk and chunk != "[END_FINAL]":
+        if chunk and not is_last_chunk:
             self._play_audio(chunk)
 
-        if feedback_msg.feedback.is_last_chunk:
+        if is_last_chunk:
             stt_status_msg = Bool()
             stt_status_msg.data = False
             self.stt_status_publisher.publish(stt_status_msg)

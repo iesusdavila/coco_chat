@@ -279,7 +279,6 @@ void LLMLifecycleNode::execute_response_generation(const std::shared_ptr<GoalHan
         token_count++;
     }
     
-    feedback->current_chunk = "[END_FINAL]";
     feedback->is_last_chunk = true;
     goal_handle->publish_feedback(feedback);
     
