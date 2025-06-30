@@ -294,13 +294,17 @@ bool LLMLifecycleNode::manage_context(int tokens_to_add) {
     int n_ctx_used = llama_kv_self_used_cells(ctx_);
     
     if ((n_ctx_used + tokens_to_add) >= (n_ctx * CONFIGURATIONS_["context_usage_threshold"])) {        
+        RCLCPP_INFO(get_logger(), "Context usage: %d/%d, generating summary...", n_ctx_used, n_ctx);
+
         std::string conversation_summary_ = generate_conversation_summary();
         
         llama_kv_self_clear(ctx_);
         llama_kv_self_seq_rm(ctx_, -1, -1, -1);
 
-        system_prompt_base_ = system_prompt_base_ + "\n\nResumen de la conversación hasta ahora:\n" + conversation_summary_;
-        
+        if (!conversation_summary_.empty()) {
+            system_prompt_base_ = system_prompt_base_ + "\n\nResumen de la conversación hasta ahora:\n" + conversation_summary_;
+        }
+
         return true;
     }
     
@@ -309,13 +313,29 @@ bool LLMLifecycleNode::manage_context(int tokens_to_add) {
 
 std::string LLMLifecycleNode::generate_conversation_summary() {    
     RCLCPP_INFO(get_logger(), "Generating conversation summary...");
+
+    std::vector<ChatMessage> limited_history;
     
-    conversation_history_for_summary_.push_back({"user", summary_prompt_});
+    limited_history.push_back({"system", system_prompt_base_});
     
+    const int MAX_MESSAGES_FOR_SUMMARY = 4; 
+    int start_idx = std::max(1, static_cast<int>(conversation_history_for_summary_.size()) - MAX_MESSAGES_FOR_SUMMARY*2);
+    
+    for (int i = start_idx; i < static_cast<int>(conversation_history_for_summary_.size()); ++i) {
+        if (conversation_history_for_summary_[i].role == "user") {
+            limited_history.push_back({"user", conversation_history_for_summary_[i].content.c_str()});
+        } else if (conversation_history_for_summary_[i].role == "assistant") {
+            limited_history.push_back({"assistant", conversation_history_for_summary_[i].content.c_str()});
+        }
+    }
+
+    limited_history.push_back({"system", system_prompt_base_});    
+    limited_history.push_back({"user", summary_prompt_});
+
     const char* tmpl = llama_model_chat_template(model_, NULL);
     std::vector<llama_chat_message> llama_messages;
     
-    for (const auto& msg : conversation_history_for_summary_) {
+    for (const auto& msg : limited_history) {
         llama_chat_message llm_msg;
         llm_msg.role = msg.role.c_str();
         llm_msg.content = msg.content.c_str();
@@ -373,8 +393,6 @@ std::string LLMLifecycleNode::generate_conversation_summary() {
         batch = llama_batch_get_one(&new_token_id, 1);
         token_count++;
     }
-
-    conversation_history_for_summary_.pop_back();
     
     RCLCPP_INFO(get_logger(), "Summary: %s", summary.c_str());
     return summary;
