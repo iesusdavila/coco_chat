@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(coco_chat)
 
-# ========== Configuración para C++ ==========
+# ========== C++ Configuration ==========
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(coco_interfaces REQUIRED)
@@ -19,13 +19,11 @@ ament_target_dependencies(control_manager_node
   lifecycle_msgs
 )
 
-# Incluir directorios de librerías
 include_directories(
   include
   /usr/local/include 
 )
 
-# Configuración del ejecutable C++
 add_executable(llm_lifecycle_node src/llm_lifecycle_node.cpp)
 ament_target_dependencies(llm_lifecycle_node 
   rclcpp 
@@ -36,27 +34,26 @@ ament_target_dependencies(llm_lifecycle_node
   rclcpp_action
 )
 
-# Añadir el directorio de la librería llamcpp
+# Include directories for llama and ggml
 link_directories(/usr/local/lib)
 
-# Enlazar las bibliotecas necesarias
+# Link libraries for llama and ggml
 target_link_libraries(llm_lifecycle_node
   /usr/local/lib/libllama.so 
   /usr/local/lib/libggml.so
 )
 
-# ========== Configuración para Python ==========
+# ========== Python Configuration ==========
 find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
-# Instalar el script Python
 install(PROGRAMS
   scripts/stt_lifecycle_node.py
   scripts/tts_lifecycle_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# ========== Instalación común ==========
+# ========== Comun Installation ==========
 install(DIRECTORY
   launch
   models
