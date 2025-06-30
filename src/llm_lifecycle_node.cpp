@@ -302,6 +302,7 @@ bool LLMLifecycleNode::manage_context(int tokens_to_add) {
         llama_kv_self_seq_rm(ctx_, -1, -1, -1);
 
         if (!conversation_summary_.empty()) {
+            RCLCPP_INFO(get_logger(), "Generated summary: %s", conversation_summary_.c_str());
             system_prompt_base_ = system_prompt_base_ + "\n\nResumen de la conversación hasta ahora:\n" + conversation_summary_;
         }
 

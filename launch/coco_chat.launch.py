@@ -1,6 +1,8 @@
 from launch import LaunchDescription
 from launch_ros.actions import LifecycleNode
 from launch_ros.actions import Node
+from launch.actions import RegisterEventHandler, TimerAction
+from launch.event_handlers import OnProcessStart
 
 def generate_launch_description():
 
@@ -37,7 +39,37 @@ def generate_launch_description():
 
     return LaunchDescription([
         stt_node,
-        llm_node,
-        tts_node,
-        control_manager_node,
+        RegisterEventHandler(
+            OnProcessStart(
+                target_action=stt_node,
+                on_start=[
+                    TimerAction(
+                        period=1.0,
+                        actions=[llm_node]
+                    )
+                ]
+            )
+        ),
+        RegisterEventHandler(
+            OnProcessStart(
+                target_action=llm_node,
+                on_start=[
+                    TimerAction(
+                        period=1.0,
+                        actions=[tts_node]
+                    )
+                ]
+            ),
+        ),
+        RegisterEventHandler(
+            OnProcessStart(
+                target_action=tts_node,
+                on_start=[
+                    TimerAction(
+                        period=1.0,
+                        actions=[control_manager_node]
+                    )
+                ]
+            )
+        ),
     ])
