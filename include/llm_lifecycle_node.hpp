@@ -52,7 +52,7 @@ private:
         {"max_tokens_chat",300.0},
         {"max_tokens_summary", 200.0},
         {"token_buffer_size", 256.0},
-        {"context_usage_threshold", 0.9}
+        {"context_usage_threshold", 0.7}
     };
     
     struct ChatMessage {
