@@ -38,14 +38,14 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        stt_node,
+        llm_node,
         RegisterEventHandler(
             OnProcessStart(
-                target_action=stt_node,
+                target_action=llm_node,
                 on_start=[
                     TimerAction(
                         period=1.0,
-                        actions=[llm_node]
+                        actions=[stt_node]
                     )
                 ]
             )
