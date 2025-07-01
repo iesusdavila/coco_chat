@@ -35,7 +35,7 @@ class STTLifecycleNode(LifecycleNode):
         super().__init__('stt_lifecycle_node')
         
         pkg_share_dir = get_package_share_directory('coco_chat')
-        self.vosk_model_path = os.path.join(pkg_share_dir, 'models', 'STT', 'vosk-model-small-es-0.42')
+        self.vosk_model_path = os.path.join(pkg_share_dir, 'models', 'STT', 'vosk-model-es-0.42')
         
         self.response_publisher = self.create_publisher(PersonResponse, '/response_person', 10)
         self.stt_status_publisher = self.create_publisher(Bool, '/stt_terminado', 10)
