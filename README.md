@@ -1,1 +1,1 @@
-# buddy_chat
+# coco_chat
