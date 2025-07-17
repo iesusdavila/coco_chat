@@ -18,7 +18,7 @@ def generate_launch_description():
         name='llm_lifecycle_node',
         namespace='',
         package='coco_chat',
-        executable='llm_lifecycle_node',
+        executable='llm_lifecycle_node.py',
         output='screen',
     )
 

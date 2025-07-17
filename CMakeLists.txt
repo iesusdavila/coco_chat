@@ -50,6 +50,8 @@ find_package(sensor_msgs REQUIRED)
 install(PROGRAMS
   scripts/stt_lifecycle_node.py
   scripts/tts_lifecycle_node.py
+  scripts/llm_lifecycle_node.py
+  scripts/config.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
