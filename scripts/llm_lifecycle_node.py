@@ -61,7 +61,7 @@ class LLMLifecycleNode(LifecycleNode):
             model=CONFIGURATIONS['model'],
             temperature=CONFIGURATIONS['temperature'],
             max_tokens=CONFIGURATIONS['max_completion_tokens'],
-            top_p=CONFIGURATIONS['top_p']
+            model_kwargs={"top_p": CONFIGURATIONS['top_p']}
         )
         
         self.response_lock = threading.Lock()
