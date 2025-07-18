@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import re
 import os
 import uuid
 import rclpy
 import threading
+from text_processor import TextProcessor
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -15,34 +15,6 @@ from rclpy.action import ActionServer, GoalResponse, CancelResponse
 from rclpy.lifecycle import LifecycleNode, LifecycleState, TransitionCallbackReturn
 
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
-
-class TextProcessor:
-    @staticmethod
-    def clean_text(text):
-        """Clean text and split into sentences, similar to C++ implementation"""
-        try:
-            punct_pattern = r'[!¡?¿*,.:;()\[\]{}]'
-            cleaned = re.sub(punct_pattern, ' ', text)
-            
-            cleaned = re.sub(r'\s+', ' ', cleaned)
-            
-            sentences = []
-            sentence_pattern = r'([.!?])\s+'
-            parts = re.split(sentence_pattern, cleaned)
-            
-            sentence = ""
-            for i, part in enumerate(parts):
-                sentence += part
-                if re.match(r'[.!?]', part):
-                    sentences.append(sentence.strip())
-                    sentence = ""
-            
-            if sentence.strip():
-                sentences.append(sentence.strip())
-            
-            return sentences if sentences else [cleaned.strip()]
-        except Exception as e:
-            return [text.strip()]
 
 class LLMLifecycleNode(LifecycleNode):
     def __init__(self):
