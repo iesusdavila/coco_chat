@@ -51,9 +51,9 @@ install(PROGRAMS
   scripts/stt_lifecycle_node.py
   scripts/tts_lifecycle_node.py
   scripts/llm_lifecycle_node.py
-  scripts/text_processor.py
-  scripts/react_state.py
-  scripts/config.py
+  scripts/utils/text_processor.py
+  scripts/utils/react_state.py
+  scripts/utils/config.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
