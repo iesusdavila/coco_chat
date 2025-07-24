@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import re
 import rclpy
 import threading
-from typing import TypedDict, Annotated
-from langgraph.graph import add_messages, StateGraph, END
+from react_state import ChatState
+from text_processor import TextProcessor
+from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -12,37 +12,6 @@ from config import CONFIGURATIONS, SYSTEM_PROMPT_BASE
 from coco_interfaces.action import ProcessResponse
 from rclpy.action import ActionServer, GoalResponse, CancelResponse
 from rclpy.lifecycle import LifecycleNode, LifecycleState, TransitionCallbackReturn
-
-class ChatState(TypedDict): 
-    messages: Annotated[list, add_messages]
-
-class TextProcessor:
-    @staticmethod
-    def clean_text(text):
-        """Clean text and split into sentences, similar to C++ implementation"""
-        try:
-            punct_pattern = r'[!¡?¿*,.:;()\[\]{}]'
-            cleaned = re.sub(punct_pattern, ' ', text)
-            
-            cleaned = re.sub(r'\s+', ' ', cleaned)
-            
-            sentences = []
-            sentence_pattern = r'([.!?])\s+'
-            parts = re.split(sentence_pattern, cleaned)
-            
-            sentence = ""
-            for i, part in enumerate(parts):
-                sentence += part
-                if re.match(r'[.!?]', part):
-                    sentences.append(sentence.strip())
-                    sentence = ""
-            
-            if sentence.strip():
-                sentences.append(sentence.strip())
-            
-            return sentences if sentences else [cleaned.strip()]
-        except Exception as e:
-            return [text.strip()]
 
 class LLMLifecycleNode(LifecycleNode):
     def __init__(self):
