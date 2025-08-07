@@ -4,14 +4,18 @@ import rclpy
 import threading
 from react_state import ChatState
 from text_processor import TextProcessor
+from movement_agent import MovementDetectionAgent
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 from config import CONFIGURATIONS, SYSTEM_PROMPT_BASE
 from coco_interfaces.action import ProcessResponse
-from rclpy.action import ActionServer, GoalResponse, CancelResponse
+from rclpy.action import ActionServer, ActionClient, GoalResponse, CancelResponse
 from rclpy.lifecycle import LifecycleNode, LifecycleState, TransitionCallbackReturn
+from control_msgs.action import FollowJointTrajectory
+from trajectory_msgs.msg import JointTrajectoryPoint
+from builtin_interfaces.msg import Duration
 
 class LLMLifecycleNode(LifecycleNode):
     def __init__(self):
@@ -22,14 +26,20 @@ class LLMLifecycleNode(LifecycleNode):
                             max_tokens=CONFIGURATIONS['max_completion_tokens'], temperature=CONFIGURATIONS['temperature'],
                             model_kwargs={"top_p": CONFIGURATIONS['top_p']})
         
+        self.movement_agent = MovementDetectionAgent(self.llm)
+        
         self.graph = StateGraph(ChatState)
         self.graph.add_node("chatbot", self.chatbot)
-        self.graph.add_edge("chatbot", END)
+        self.graph.add_node("check_movement", self.check_movement_intent)
+        self.graph.add_edge("chatbot", "check_movement")
+        self.graph.add_edge("check_movement", END)
         self.graph.set_entry_point("chatbot")
         
         self.app = self.graph.compile(checkpointer=self.memory)
         
         self.config = {"configurable": {"thread_id": 1}}
+        
+        self.joint_action_client = ActionClient(self, FollowJointTrajectory, '/joint_trajectory_controller/follow_joint_trajectory')
         
         self.action_server = None
         
@@ -39,6 +49,55 @@ class LLMLifecycleNode(LifecycleNode):
         return {
             "messages": [self.llm.invoke(state["messages"])]
         }
+    
+    def check_movement_intent(self, state: ChatState):
+        """Verifica si hay intención de movimiento y ejecuta acciones del robot"""
+        movement_result = self.movement_agent.process_movement_intent(state["messages"])
+
+        self.get_logger().info(f"Verifying movement intent: {movement_result}")
+        
+        if movement_result["movement_detected"]:
+            self.get_logger().info(f"Movement detected: {movement_result['movement_type']}")
+            self.execute_robot_movement(movement_result["joints_to_move"])
+            
+            state["movement_intent"] = movement_result
+            state["robot_action_required"] = True
+        else:
+            self.get_logger().info("Don't need to move the robot")
+            state["robot_action_required"] = False
+            
+        return state
+    
+    def execute_robot_movement(self, joints_to_move: dict):
+        """Ejecuta el movimiento del robot usando action /joint_trajectory_controller/follow_joint_trajectory"""
+        if not joints_to_move:
+            return
+            
+        if not self.joint_action_client.wait_for_server(timeout_sec=2.0):
+            self.get_logger().error("Action server /joint_trajectory_controller/follow_joint_trajectory no disponible")
+            return
+            
+        goal_msg = FollowJointTrajectory.Goal()
+        
+        joint_names = [f"joint_{i}" for i in range(1, 14)]
+        goal_msg.trajectory.joint_names = joint_names
+        
+        point = JointTrajectoryPoint()
+        
+        point.positions = [0.0] * 13
+        
+        for joint_name, position in joints_to_move.items():
+            if joint_name in joint_names:
+                joint_index = joint_names.index(joint_name)
+                point.positions[joint_index] = position
+        
+        point.time_from_start = Duration(sec=3, nanosec=0)
+        
+        goal_msg.trajectory.points = [point]
+        
+        future = self.joint_action_client.send_goal_async(goal_msg)
+        
+        self.get_logger().info(f"Comando de movimiento enviado: {joints_to_move}")
     
     def on_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
         self.get_logger().info('Configuring LLM Node')
@@ -80,7 +139,7 @@ class LLMLifecycleNode(LifecycleNode):
 
     def execute_response_generation(self, goal_handle):
         self.get_logger().info('Executing response generation')
-        
+
         feedback_msg = ProcessResponse.Feedback()
         result_msg = ProcessResponse.Result()
 
@@ -93,11 +152,29 @@ class LLMLifecycleNode(LifecycleNode):
             ]
             
             result = self.app.invoke({
-                "messages": messages_to_send
+                "messages": messages_to_send,
+                "movement_intent": None,
+                "robot_action_required": False
             }, config=self.config)
             
-            ai_response = result["messages"][-1].content
-            
+            if result.get("robot_action_required", False):
+                movement_type = result["movement_intent"]["movement_type"]
+                
+                movement_responses = {
+                    "saludar": "¡Hola! Te estoy saludando con mi brazo. ¿Cómo estás?",
+                    "asentir": "¡Claro que sí! Estoy asintiendo con mi cabeza.",
+                    "negar": "No, no. Estoy moviendo mi cabeza para decir que no.",
+                    "aplaudir": "¡Muy bien! Te estoy aplaudiendo. ¡Excelente!",
+                    "gesticular": "¡Perfecto! Estoy gesticulando para expresarme mejor.",
+                    "girar_cabeza": "Estoy girando mi cabeza para verte mejor.",
+                    "girar_cuerpo": "Me estoy girando para orientarme hacia ti."
+                }
+                
+                ai_response = movement_responses.get(movement_type, f"¡Perfecto! Voy a {movement_type}.")
+                
+            else:
+                ai_response = result["messages"][-1].content
+
             buffer = ""
 
             self.get_logger().info("Model response:")
