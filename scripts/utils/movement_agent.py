@@ -1,5 +1,4 @@
 from react_state import MovementState
-from typing import TypedDict, Annotated
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage
@@ -23,18 +22,60 @@ class MovementDetectionAgent:
         user_message = state["messages"][-2].content if state["messages"] else ""
         
         detection_prompt = f"""
-        Analiza si el siguiente mensaje indica que el usuario quiere que un robot social realice un movimiento de sus extremidades o cabeza:
+        Eres un experto en detectar intenciones de movimiento para un robot social. 
+        Analiza si el siguiente mensaje indica que el usuario quiere que realice algún movimiento físico:
         
         Mensaje: "{user_message}"
 
-        Los movimientos posibles son: saludar, afirmar, negar, aplaudir, señalar, girar_cabeza, girar_cuerpo, gesticular.
-        En caso de haber otra intencion de movimiento ajusta el movimiento a uno de los anteriores. Es muy dificil que pida un movimiento que 
-        ninguno asi que verifica bien el mensaje.
+        TIPOS DE MOVIMIENTO Y SUS VARIACIONES:
+        
+        1. SALUDAR: 
+        - "saluda", "di hola", "haz un gesto de saludo", "mueve la mano", "agita la mano", "levanta la mano"
+        
+        2. MOVER_BRAZO_DERECHO:
+        - "mueve el brazo derecho", "levanta el brazo derecho", "extiende el brazo derecho", "haz un gesto con el brazo derecho"
+
+        3. MOVER_BRAZO_IZQUIERDO:
+        - "mueve el brazo izquierdo", "levanta el brazo izquierdo", "extiende el brazo izquierdo", "haz un gesto con el brazo izquierdo"
+
+        4. ABRIR_MANO_DERECHA:
+        - "abre la mano derecha", "extiende tu mano derecha", "haz un gesto con la mano derecha", "abre la palma derecha"
+
+        5. CERRAR_MANO_DERECHA:
+        - "cierra la mano derecha", "haz un puño con la mano derecha", "junta tu mano derecha", "cierra la palma derecha"
+        
+        6. GIRAR_CABEZA:
+        - "gira la cabeza", "mueve la cabeza", "voltea", "mira hacia", "gira tu cabeza"
+        
+        7. GIRAR_CUERPO:
+        - "gira el cuerpo", "date la vuelta", "voltéate", "gira", "mueve el cuerpo"
+
+        8. POSICION_ORIGINAL:
+        - "vuelve a la posición original", "regresa a la posición inicial", "vuelve a estar quieto", "mantén la posición"
+
+        9. ABRIR_MANO_IZQUIERDA:
+        - "abre la mano izquierda", "extiende tu mano izquierda", "haz un gesto con la mano izquierda", "abre la palma izquierda"
+
+        10. CERRAR_MANO_IZQUIERDA:
+        - "cierra la mano izquierda", "haz un puño con la mano izquierda", "junta tu mano izquierda", "cierra la palma izquierda"
+
+        INSTRUCCIONES:
+        - Busca CUALQUIER palabra o frase que indique movimiento físico
+        - Si encuentras sinónimos o variaciones de los movimientos listados, clasifícalos en la categoría apropiada
+        - Si hay ambigüedad, elige el movimiento más probable basado en el contexto
+        - Solo responde "ninguno" si definitivamente NO hay intención de movimiento físico
+        
+        EJEMPLOS:
+        - "mueve tu cabeza" → girar_cabeza
+        - "haz un gesto" → gesticular
+        - "levanta la mano" → saludar
+        - "¿puedes aplaudir?" → aplaudir
+        - "dime tu nombre" → ninguno
         
         Responde SOLO en el siguiente formato JSON:
         {{
             "movement_detected": true/false,
-            "movement_type": tipo_de_movimiento (uno de los movimientos posibles o "ninguno")
+            "movement_type": "saludar/mover_brazo_derecho/mover_brazo_izquierdo/abrir_mano/cerrar_mano/girar_cabeza/girar_cuerpo/posicion_original/abrir_mano_izquierda/cerrar_mano_izquierda/ninguno",
         }}
         """
         
@@ -63,31 +104,63 @@ class MovementDetectionAgent:
             joints_to_move = {
                 "joint_4": 1.0,
                 "joint_5": 0.5,
-                "joint_7": 0.8,
+                "joint_6": 0.2,
+                "joint_7": 0.1
+            }
+        elif movement_type == "mover_brazo_derecho":
+            joints_to_move = {
+                "joint_4": 1.0,
+                "joint_5": 0.5,
+                "joint_6": 0.2,
+                "joint_7": -0.4
+            }
+        elif movement_type == "mover_brazo_izquierdo":
+            joints_to_move = {
+                "joint_9": 1.0,
+                "joint_10": 0.5,
+                "joint_11": 0.2,
+                "joint_12": -0.4
+            }
+        elif movement_type == "abrir_mano_derecha":
+            joints_to_move = {
                 "joint_8": 1.0
             }
-        elif movement_type == "asentir":
+        elif movement_type == "cerrar_mano_derecha":
             joints_to_move = {
-                "joint_3": 0.5
+                "joint_8": 0.0
             }
-        elif movement_type == "negar":
+        elif movement_type == "abrir_mano_izquierda":
             joints_to_move = {
-                "joint_2": 0.7
-            }
-        elif movement_type == "aplaudir":
-            joints_to_move = {
-                "joint_4": 0.5,
-                "joint_9": 0.5,
-                "joint_8": 1.0,
                 "joint_13": 1.0
+            }
+        elif movement_type == "cerrar_mano_izquierda":
+            joints_to_move = {
+                "joint_13": 0.0
             }
         elif movement_type == "girar_cabeza":
             joints_to_move = {
-                "joint_2": 0.8
+                "joint_2": 0.8,
+                "joint_3": 0.2
             }
         elif movement_type == "girar_cuerpo":
             joints_to_move = {
                 "joint_1": 0.6
+            }
+        elif movement_type == "posicion_original":
+            joints_to_move = {
+                "joint_1": 0.0,
+                "joint_2": 0.0,
+                "joint_3": 0.0,
+                "joint_4": 0.0,
+                "joint_5": 0.0,
+                "joint_6": 0.0,
+                "joint_7": 0.0,
+                "joint_8": 0.0,
+                "joint_9": 0.0,
+                "joint_10": 0.0,
+                "joint_11": 0.0,
+                "joint_12": 0.0,
+                "joint_13": 0.0
             }
         
         return {
