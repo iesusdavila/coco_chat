@@ -157,23 +157,7 @@ class LLMLifecycleNode(LifecycleNode):
                 "robot_action_required": False
             }, config=self.config)
             
-            if result.get("robot_action_required", False):
-                movement_type = result["movement_intent"]["movement_type"]
-                
-                movement_responses = {
-                    "saludar": "¡Hola! Te estoy saludando con mi brazo. ¿Cómo estás?",
-                    "asentir": "¡Claro que sí! Estoy asintiendo con mi cabeza.",
-                    "negar": "No, no. Estoy moviendo mi cabeza para decir que no.",
-                    "aplaudir": "¡Muy bien! Te estoy aplaudiendo. ¡Excelente!",
-                    "gesticular": "¡Perfecto! Estoy gesticulando para expresarme mejor.",
-                    "girar_cabeza": "Estoy girando mi cabeza para verte mejor.",
-                    "girar_cuerpo": "Me estoy girando para orientarme hacia ti."
-                }
-                
-                ai_response = movement_responses.get(movement_type, f"¡Perfecto! Voy a {movement_type}.")
-                
-            else:
-                ai_response = result["messages"][-1].content
+            ai_response = result["messages"][-1].content
 
             buffer = ""
 
