@@ -22,7 +22,7 @@ class MovementDetectionAgent:
     
     def detect_movement_intent(self, state: MovementState):
         """Detecta si hay intención de movimiento en el mensaje del usuario"""
-        user_message = state["messages"][-2].content if state["messages"] else ""
+        user_message = state["messages"][-1].content if state["messages"] else ""
         
         detection_prompt = f"""
         Eres un experto en detectar intenciones de movimiento para un robot social. 
@@ -70,15 +70,15 @@ class MovementDetectionAgent:
         
         EJEMPLOS:
         - "mueve tu cabeza" → girar_cabeza
-        - "haz un gesto" → gesticular
-        - "levanta la mano" → saludar
-        - "¿puedes aplaudir?" → aplaudir
+        - "haz un gesto con tu brazo derecho" → mover_brazo_derecho
+        - "levanta la mano derecha" → cerrar_mano_derecha
+        - "¿puedes mover tu brazo izquierdo?" → mover_brazo_izquierdo
         - "dime tu nombre" → ninguno
         
         Responde SOLO en el siguiente formato JSON:
         {{
             "movement_detected": true/false,
-            "movement_type": "saludar/mover_brazo_derecho/mover_brazo_izquierdo/abrir_mano/cerrar_mano/girar_cabeza/girar_cuerpo/posicion_original/abrir_mano_izquierda/cerrar_mano_izquierda/ninguno",
+            "movement_type": "mover_brazo_derecho/mover_brazo_izquierdo/abrir_mano_derecha/cerrar_mano_derecha/girar_cabeza/girar_cuerpo/posicion_original/abrir_mano_izquierda/cerrar_mano_izquierda/ninguno",
         }}
         """
         
@@ -103,14 +103,7 @@ class MovementDetectionAgent:
         movement_type = state.get("movement_type", "ninguno")
         joints_to_move = {}
         
-        if movement_type == "saludar":
-            joints_to_move = {
-                "joint_4": 1.0,
-                "joint_5": 0.5,
-                "joint_6": 0.2,
-                "joint_7": 0.1
-            }
-        elif movement_type == "mover_brazo_derecho":
+        if movement_type == "mover_brazo_derecho":
             joints_to_move = {
                 "joint_4": 1.0,
                 "joint_5": 0.5,
