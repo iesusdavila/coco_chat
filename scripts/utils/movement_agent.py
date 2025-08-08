@@ -5,7 +5,7 @@ from langchain_core.messages import SystemMessage
 from config import CONFIGURATIONS
 
 class MovementDetectionAgent:
-    def __init__(self, llm: ChatGroq):
+    def __init__(self):
         self.llm = ChatGroq(model="llama-3.1-8b-instant", streaming=True, 
                             max_tokens=CONFIGURATIONS['max_completion_tokens'], temperature=CONFIGURATIONS['temperature'],
                             model_kwargs={"top_p": CONFIGURATIONS['top_p']})
