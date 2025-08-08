@@ -2,10 +2,13 @@ from react_state import MovementState
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage
+from config import CONFIGURATIONS
 
 class MovementDetectionAgent:
     def __init__(self, llm: ChatGroq):
-        self.llm = llm
+        self.llm = ChatGroq(model="llama-3.1-8b-instant", streaming=True, 
+                            max_tokens=CONFIGURATIONS['max_completion_tokens'], temperature=CONFIGURATIONS['temperature'],
+                            model_kwargs={"top_p": CONFIGURATIONS['top_p']})
         self.setup_graph()
     
     def setup_graph(self):
