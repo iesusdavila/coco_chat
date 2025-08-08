@@ -54,6 +54,7 @@ install(PROGRAMS
   scripts/utils/text_processor.py
   scripts/utils/react_state.py
   scripts/utils/movement_agent.py
+  scripts/utils/state_graph.py
   scripts/utils/config.py
   DESTINATION lib/${PROJECT_NAME}
 )
