@@ -7,7 +7,7 @@ from text_processor import TextProcessor
 from movement_agent import MovementDetectionAgent
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 from config import CONFIGURATIONS, SYSTEM_PROMPT_BASE
 from coco_interfaces.action import ProcessResponse
@@ -29,11 +29,19 @@ class LLMLifecycleNode(LifecycleNode):
         self.movement_agent = MovementDetectionAgent(self.llm)
         
         self.graph = StateGraph(ChatState)
-        self.graph.add_node("chatbot", self.chatbot)
         self.graph.add_node("check_movement", self.check_movement_intent)
-        self.graph.add_edge("chatbot", "check_movement")
-        self.graph.add_edge("check_movement", END)
-        self.graph.set_entry_point("chatbot")
+        self.graph.add_node("chatbot", self.chatbot)
+        self.graph.add_node("execute_movement", self.execute_movement)
+
+        self.graph.set_entry_point("check_movement")
+
+        self.graph.add_edge("chatbot", END)
+        self.graph.add_edge("execute_movement", END)
+
+        self.graph.add_conditional_edges(
+            "check_movement",
+            self.go_to_next_state,    
+        )
         
         self.app = self.graph.compile(checkpointer=self.memory)
         
@@ -54,19 +62,38 @@ class LLMLifecycleNode(LifecycleNode):
         """Verifica si hay intención de movimiento y ejecuta acciones del robot"""
         movement_result = self.movement_agent.process_movement_intent(state["messages"])
 
-        self.get_logger().info(f"Verifying movement intent: {movement_result}")
-        
-        if movement_result["movement_detected"]:
-            self.get_logger().info(f"Movement detected: {movement_result['movement_type']}")
-            self.execute_robot_movement(movement_result["joints_to_move"])
-            
-            state["movement_intent"] = movement_result
-            state["robot_action_required"] = True
+        return {
+            "messages": state["messages"],
+            "movement_detected": movement_result["movement_detected"],
+            "movement_intent": movement_result,
+            "robot_action_required": movement_result["movement_detected"]
+        }
+    
+    def go_to_next_state(self, state: ChatState):
+        """Determina si se debe ir al siguiente estado basado en la intención de movimiento"""
+        self.get_logger().info(f"Checking if movement is required: {state['robot_action_required']}")
+
+        if state["robot_action_required"]:
+            self.get_logger().info("Movement detected, proceeding to execute movement")
+            return "execute_movement"
         else:
-            self.get_logger().info("Don't need to move the robot")
-            state["robot_action_required"] = False
-            
-        return state
+            self.get_logger().info("No movement detected, proceeding to chatbot")
+            return "chatbot"
+        
+    def execute_movement(self, state: ChatState):
+        """Ejecuta el movimiento del robot basado en la intención detectada"""        
+        self.get_logger().info(f"Movement detected: {state['movement_intent']['movement_type']}")
+        self.execute_robot_movement(state["movement_intent"]["joints_to_move"])
+
+        mensaje_ai_predefinido = AIMessage(
+            content=f"¡He realizado el movimiento de {state['movement_intent']['movement_type']}! ¿Hay algo más en lo que pueda ayudarte?"
+        )
+
+        state["messages"].append(mensaje_ai_predefinido)
+
+        return {
+            "messages": state["messages"]
+        }
     
     def execute_robot_movement(self, joints_to_move: dict):
         """Ejecuta el movimiento del robot usando action /joint_trajectory_controller/follow_joint_trajectory"""
